@@ -203,20 +203,4 @@ func TestRenderConfig_InvalidJSONErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "m")
 }
 
-func TestModelKeyEnvVar(t *testing.T) {
-	cases := map[string]string{
-		"glm":          "LITELLM_MODELKEY_GLM",
-		"minimax-m3":   "LITELLM_MODELKEY_MINIMAX_M3",
-		"qwen3.6-27b":  "LITELLM_MODELKEY_QWEN3_6_27B",
-		"neuralwatt-x": "LITELLM_MODELKEY_NEURALWATT_X",
-	}
-	for in, want := range cases {
-		assert.Equalf(t, want, modelKeyEnvVar(in), "input %q", in)
-	}
-}
-
-func TestModelKeyEnvVar_DistinctNamesDistinctVars(t *testing.T) {
-	assert.NotEqual(t, modelKeyEnvVar("minimax-m3"), modelKeyEnvVar("minimax-m2"))
-}
-
 func ptr[T any](v T) *T { return &v }

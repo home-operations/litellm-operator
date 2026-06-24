@@ -1,0 +1,40 @@
+---
+suite: webhook
+templates:
+  - templates/webhook.tpl
+  - templates/deployment.tpl
+tests:
+  - it: renders the ValidatingWebhookConfiguration with both validators
+    template: templates/webhook.tpl
+    documentIndex: 0
+    asserts:
+      - isKind:
+          of: ValidatingWebhookConfiguration
+      - equal:
+          path: webhooks[0].name
+          value: vlitellmproxy.kb.io
+      - equal:
+          path: webhooks[1].name
+          value: vlitellmmodel.kb.io
+      - equal:
+          path: webhooks[1].clientConfig.service.path
+          value: /validate-litellm-home-operations-com-v1alpha1-litellmmodel
+
+  - it: passes the webhook flags to the manager when enabled
+    template: templates/deployment.tpl
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --webhook-config-name=RELEASE-NAME-litellm-operator-validating-webhook
+
+  - it: omits webhook flags and config when disabled
+    set:
+      webhook.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --webhook-config-name=RELEASE-NAME-litellm-operator-validating-webhook
+        template: templates/deployment.tpl
+      - hasDocuments:
+          count: 0
+        template: templates/webhook.tpl

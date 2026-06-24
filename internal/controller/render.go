@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,11 +16,10 @@ import (
 )
 
 const (
-	configFileName    = "config.yaml"
-	configMountPath   = "/etc/litellm"
-	proxyContainer    = "litellm"
-	proxyPort         = 4000
-	modelKeyEnvPrefix = "LITELLM_MODELKEY_"
+	configFileName  = "config.yaml"
+	configMountPath = "/etc/litellm"
+	proxyContainer  = "litellm"
+	proxyPort       = 4000
 )
 
 // renderedConfig is the output of folding a proxy and its models into a config.yaml.
@@ -74,7 +72,7 @@ func renderConfig(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.
 
 		switch {
 		case p.APIKeyRef != nil:
-			envName := modelKeyEnvVar(m.Name)
+			envName := m.APIKeyEnvVarName()
 			params["api_key"] = "os.environ/" + envName
 			envVars = append(envVars, corev1.EnvVar{
 				Name: envName,
@@ -148,20 +146,4 @@ func decodeRaw(raw *runtime.RawExtension) (map[string]any, error) {
 		return nil, err
 	}
 	return out, nil
-}
-
-// modelKeyEnvVar derives a stable, valid env var name from a model resource
-// name (a DNS-1123 subdomain), e.g. "minimax-m3" -> "LITELLM_MODELKEY_MINIMAX_M3".
-func modelKeyEnvVar(name string) string {
-	mapped := strings.Map(func(r rune) rune {
-		switch {
-		case r >= 'a' && r <= 'z':
-			return r - ('a' - 'A')
-		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-			return r
-		default:
-			return '_'
-		}
-	}, name)
-	return modelKeyEnvPrefix + mapped
 }

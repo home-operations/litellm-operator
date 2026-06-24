@@ -76,3 +76,31 @@ Return the proper image pull policy
 {{- define "litellm-operator.imagePullPolicy" -}}
 {{- .Values.image.pullPolicy | default "IfNotPresent" }}
 {{- end }}
+
+{{/*
+Webhook service name
+*/}}
+{{- define "litellm-operator.webhookServiceName" -}}
+{{- printf "%s-webhook" (include "litellm-operator.fullname" .) }}
+{{- end }}
+
+{{/*
+Webhook serving-cert Secret name
+*/}}
+{{- define "litellm-operator.webhookCertName" -}}
+{{- printf "%s-webhook-cert" (include "litellm-operator.fullname" .) }}
+{{- end }}
+
+{{/*
+ValidatingWebhookConfiguration name
+*/}}
+{{- define "litellm-operator.webhookConfigName" -}}
+{{- printf "%s-validating-webhook" (include "litellm-operator.fullname" .) }}
+{{- end }}
+
+{{/*
+Metrics service name
+*/}}
+{{- define "litellm-operator.metricsServiceName" -}}
+{{- printf "%s-metrics" (include "litellm-operator.fullname" .) }}
+{{- end }}

@@ -51,9 +51,19 @@ controller:
     secure: true
     # -- Metrics port.
     port: 8443
+    # -- Annotations for the metrics Service.
+    annotations: {}
   health:
     # -- Health/readiness probe port.
     port: 8081
+
+webhook:
+  # -- Enable the validating admission webhook. The operator self-manages the
+  # serving certificate (no cert-manager dependency) and patches the CA bundle
+  # into the ValidatingWebhookConfiguration.
+  enabled: true
+  # -- Webhook server container port.
+  port: 9443
 
 # -- Extra environment variables for the operator container.
 env: []

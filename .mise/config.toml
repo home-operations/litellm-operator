@@ -5,6 +5,7 @@ helm = "4.2.2"
 cosign = "3.1.1"
 helm-docs = "1.14.2"
 jq = "1.8.1"
+kind = "0.32.0"
 kube-controller-tools = "0.21.0"
 kubectl = "1.36.2"
 lefthook = "2.1.9"
@@ -84,6 +85,18 @@ bin_dir="$PWD/bin"
 mkdir -p "$bin_dir"
 export KUBEBUILDER_ASSETS="$(setup-envtest use "$envtest_k8s" --bin-dir "$bin_dir" -p path)"
 go test ./test/integration/... -v -ginkgo.v
+'''
+
+[tasks.test-e2e]
+description = "Run e2e tests against a Kind cluster"
+depends = ["manifests", "generate", "fmt", "vet", "helm-crds"]
+run = '''
+cluster="${KIND_CLUSTER:-litellm-operator-e2e}"
+if ! kind get clusters | grep -qx "$cluster"; then
+  kind create cluster --name "$cluster"
+fi
+trap 'kind delete cluster --name "$cluster"' EXIT
+KIND_CLUSTER="$cluster" go test ./test/e2e/... -v -ginkgo.v -timeout 20m
 '''
 
 [tasks.build]

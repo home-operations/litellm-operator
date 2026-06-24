@@ -1,9 +1,13 @@
 package v1alpha1
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+const apiKeyEnvPrefix = "LITELLM_MODELKEY_"
 
 // SecretKeyRef points at a single key within a Secret in the same namespace as
 // the LiteLLMModel. The operator wires it into the proxy Deployment as an
@@ -103,6 +107,24 @@ type LiteLLMModel struct {
 
 	Spec   LiteLLMModelSpec   `json:"spec,omitempty"`
 	Status LiteLLMModelStatus `json:"status,omitempty"`
+}
+
+// APIKeyEnvVarName is the deterministic env var name the operator injects into
+// the proxy Deployment to carry this model's secret-backed API key, referenced
+// from config.yaml as os.environ/<name>. Derived from the resource name (a
+// DNS-1123 subdomain), e.g. "minimax-m3" -> "LITELLM_MODELKEY_MINIMAX_M3".
+func (m *LiteLLMModel) APIKeyEnvVarName() string {
+	mapped := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r - ('a' - 'A')
+		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			return r
+		default:
+			return '_'
+		}
+	}, m.Name)
+	return apiKeyEnvPrefix + mapped
 }
 
 // +kubebuilder:object:root=true

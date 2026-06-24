@@ -43,6 +43,12 @@
         },
         "metrics": {
           "properties": {
+            "annotations": {
+              "description": "Annotations for the metrics Service.",
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
             "enabled": {
               "default": false,
               "description": "Expose the controller-runtime metrics endpoint.",
@@ -390,6 +396,25 @@
       },
       "title": "tolerations",
       "type": "array"
+    },
+    "webhook": {
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Enable the validating admission webhook. The operator self-manages the\nserving certificate (no cert-manager dependency) and patches the CA bundle\ninto the ValidatingWebhookConfiguration.",
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "port": {
+          "default": 9443,
+          "description": "Webhook server container port.",
+          "title": "port",
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "webhook",
+      "type": "object"
     }
   },
   "required": [],

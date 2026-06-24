@@ -52,10 +52,19 @@ spec:
             {{- else }}
             - --metrics-bind-address=0
             {{- end }}
-          {{- with .Values.env }}
+            {{- if .Values.webhook.enabled }}
+            - --webhook-config-name={{ include "litellm-operator.webhookConfigName" . }}
+            - --webhook-service-name={{ include "litellm-operator.webhookServiceName" . }}
+            - --webhook-secret-name={{ include "litellm-operator.webhookCertName" . }}
+            {{- end }}
           env:
+            - name: CONTROLLER_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           ports:
             - name: health
               containerPort: {{ .Values.controller.health.port }}
@@ -65,12 +74,31 @@ spec:
               containerPort: {{ .Values.controller.metrics.port }}
               protocol: TCP
             {{- end }}
+            {{- if .Values.webhook.enabled }}
+            - name: webhook
+              containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.webhook.enabled }}
+          volumeMounts:
+            - name: webhook-cert
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+          {{- end }}
+      {{- if .Values.webhook.enabled }}
+      volumes:
+        - name: webhook-cert
+          secret:
+            secretName: {{ include "litellm-operator.webhookCertName" . }}
+            defaultMode: 420
+            optional: true
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

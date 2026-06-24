@@ -1,0 +1,46 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-litellm-home-operations-com-v1alpha1-litellmmodel
+  failurePolicy: Fail
+  name: vlitellmmodel.kb.io
+  rules:
+  - apiGroups:
+    - litellm.home-operations.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - litellmmodels
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-litellm-home-operations-com-v1alpha1-litellmproxy
+  failurePolicy: Fail
+  name: vlitellmproxy.kb.io
+  rules:
+  - apiGroups:
+    - litellm.home-operations.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - litellmproxies
+  sideEffects: None

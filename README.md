@@ -63,6 +63,17 @@ The typed fields cover the common `litellm_params`; anything else (provider
 quirks) goes under `params.additional`, and `info` maps verbatim to
 `model_info`.
 
+## Validation
+
+A validating admission webhook (enabled by default) rejects mistakes before they
+reach the cluster: a `LiteLLMModel` that sets both `apiKey` and `apiKeyRef`, two
+models whose names sanitize to the same injected env var (which would silently
+clobber one key), and a `LiteLLMProxy` whose `modelSelector` is empty (which
+would otherwise match every model in the namespace). The operator self-manages
+the webhook serving certificate and patches the CA bundle into the
+`ValidatingWebhookConfiguration`, so there is no cert-manager dependency. Set
+`webhook.enabled=false` to turn it off.
+
 ## Install
 
 ```sh
@@ -78,6 +89,7 @@ then:
 ```sh
 mise run test              # unit tests
 mise run test-integration  # envtest integration tests
+mise run test-e2e          # kind-based end-to-end tests
 mise run lint              # golangci-lint
 mise run build             # build the manager binary
 mise run run               # run the controller against your kubeconfig

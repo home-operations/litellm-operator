@@ -1,0 +1,75 @@
+package e2e
+
+import (
+	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+const testNS = "default"
+
+var _ = Describe("litellm-operator e2e", Ordered, func() {
+	AfterAll(func() {
+		_, _ = kubectl("delete", "litellmmodel", "glm", "-n", testNS, "--ignore-not-found")
+		_, _ = kubectl("delete", "litellmproxy", "main", "-n", testNS, "--ignore-not-found")
+	})
+
+	It("rejects a LiteLLMProxy with an empty modelSelector via the webhook", func() {
+		out, err := kubectlApply(`
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+  name: bad
+  namespace: default
+spec:
+  modelSelector: {}
+`)
+		Expect(err).To(HaveOccurred())
+		Expect(out).To(ContainSubstring("modelSelector must not be empty"))
+	})
+
+	It("reconciles a proxy and its model into a ConfigMap and Deployment", func() {
+		_, err := kubectlApply(`
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+  name: main
+  namespace: default
+spec:
+  modelSelector:
+    matchLabels:
+      proxy: main
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: glm
+  namespace: default
+  labels:
+    proxy: main
+spec:
+  modelName: glm-5.2
+  params:
+    model: openai/glm-5.2
+    apiKeyRef:
+      name: zai
+      key: apikey
+`)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			out, err := kubectl("get", "configmap", "main-config", "-n", testNS, "-o", "jsonpath={.data.config\\.yaml}")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(out).To(ContainSubstring("glm-5.2"))
+			g.Expect(out).To(ContainSubstring("os.environ/LITELLM_MODELKEY_GLM"))
+		}, 2*time.Minute, 5*time.Second).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			out, err := kubectl("get", "deployment", "main", "-n", testNS,
+				"-o", "jsonpath={.spec.template.metadata.annotations.litellm\\.home-operations\\.com/config-hash}")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(out).NotTo(BeEmpty())
+		}, 2*time.Minute, 5*time.Second).Should(Succeed())
+	})
+})
