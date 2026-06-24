@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	modelOpenAIM = "openai/m"
-	secretKeyKey = "apikey"
+	modelOpenAIM    = "openai/m"
+	secretKeyKey    = "apikey"
+	guardrailAporia = "aporia"
 )
 
 func raw(s string) *runtime.RawExtension { return &runtime.RawExtension{Raw: []byte(s)} }
@@ -82,7 +83,7 @@ func TestRenderConfig_LiteralAPIKeyNoEnvVar(t *testing.T) {
 	assert.Empty(t, got.envVars)
 	cfg := parse(t, got.yaml)
 	list := cfg["model_list"].([]any)
-	params := list[0].(map[string]any)["litellm_params"].(map[string]any)
+	params := list[0].(map[string]any)[keyLitellmParams].(map[string]any)
 	assert.Equal(t, "os.environ/LLAMA_API_KEY", params["api_key"])
 }
 
@@ -107,7 +108,7 @@ func TestRenderConfig_TypedFieldsAndPassthroughMerge(t *testing.T) {
 
 	cfg := parse(t, got.yaml)
 	entry := cfg["model_list"].([]any)[0].(map[string]any)
-	params := entry["litellm_params"].(map[string]any)
+	params := entry[keyLitellmParams].(map[string]any)
 
 	assert.Equal(t, "openai/qwen3.6-27b", params["model"])
 	assert.Equal(t, "https://super", params["api_base"])
@@ -159,7 +160,7 @@ func TestRenderConfig_APIBaseRefBecomesEnvRef(t *testing.T) {
 	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
-	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["litellm_params"].(map[string]any)
+	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)[keyLitellmParams].(map[string]any)
 	assert.Equal(t, "os.environ/LITELLM_MODELBASE_QWEN", params["api_base"])
 	assert.Equal(t, "os.environ/LITELLM_MODELKEY_QWEN", params["api_key"])
 
@@ -180,7 +181,7 @@ func TestRenderConfig_TypedFieldWinsOverAdditional(t *testing.T) {
 	})
 	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
-	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["litellm_params"].(map[string]any)
+	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)[keyLitellmParams].(map[string]any)
 	assert.Equal(t, "openai/real", params["model"])
 }
 
@@ -199,9 +200,9 @@ func TestRenderConfig_DeterministicAcrossInputOrder(t *testing.T) {
 
 	// And the order is the sorted-by-name order.
 	list := parse(t, first.yaml)["model_list"].([]any)
-	assert.Equal(t, "a", list[0].(map[string]any)["model_name"])
-	assert.Equal(t, "b", list[1].(map[string]any)["model_name"])
-	assert.Equal(t, "c", list[2].(map[string]any)["model_name"])
+	assert.Equal(t, "a", list[0].(map[string]any)[keyModelName])
+	assert.Equal(t, "b", list[1].(map[string]any)[keyModelName])
+	assert.Equal(t, "c", list[2].(map[string]any)[keyModelName])
 }
 
 func TestRenderConfig_HashChangesWithContent(t *testing.T) {
@@ -266,7 +267,7 @@ func TestRenderConfig_ModelListWinsOverExtraConfig(t *testing.T) {
 
 	list := parse(t, got.yaml)["model_list"].([]any)
 	require.Len(t, list, 1)
-	assert.Equal(t, "a", list[0].(map[string]any)["model_name"])
+	assert.Equal(t, "a", list[0].(map[string]any)[keyModelName])
 }
 
 func TestRenderConfig_OmitsUnsetGlobalSettingsAndOptionalParams(t *testing.T) {
@@ -282,7 +283,7 @@ func TestRenderConfig_OmitsUnsetGlobalSettingsAndOptionalParams(t *testing.T) {
 	assert.False(t, hasRouter)
 	assert.False(t, hasLitellm)
 
-	params := cfg["model_list"].([]any)[0].(map[string]any)["litellm_params"].(map[string]any)
+	params := cfg["model_list"].([]any)[0].(map[string]any)[keyLitellmParams].(map[string]any)
 	for _, k := range []string{"api_base", "api_key", "api_version", "drop_params", "rpm", "tpm"} {
 		_, ok := params[k]
 		assert.Falsef(t, ok, "expected %q to be omitted when unset", k)
@@ -317,7 +318,7 @@ func TestRenderConfig_GuardrailsRenderedWithSecretRef(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "aporia-pre"},
 		Spec: litellmv1alpha1.LiteLLMGuardrailSpec{
 			GuardrailName: "aporia-pre-guard",
-			Guardrail:     "aporia",
+			Guardrail:     guardrailAporia,
 			Mode:          "pre_call",
 			DefaultOn:     &on,
 			APIKeyRef:     &litellmv1alpha1.SecretKeyRef{Name: "gr", Key: "APORIA_KEY"},
@@ -329,7 +330,7 @@ func TestRenderConfig_GuardrailsRenderedWithSecretRef(t *testing.T) {
 
 	entry := parse(t, got.yaml)["guardrails"].([]any)[0].(map[string]any)
 	assert.Equal(t, "aporia-pre-guard", entry["guardrail_name"])
-	lp := entry["litellm_params"].(map[string]any)
+	lp := entry[keyLitellmParams].(map[string]any)
 	assert.Equal(t, "aporia", lp["guardrail"])
 	assert.Equal(t, "pre_call", lp["mode"])
 	assert.Equal(t, true, lp["default_on"])
@@ -410,7 +411,7 @@ func TestRenderConfig_EnvCollisionAcrossKinds(t *testing.T) {
 	g := litellmv1alpha1.LiteLLMGuardrail{
 		ObjectMeta: metav1.ObjectMeta{Name: "dup"},
 		Spec: litellmv1alpha1.LiteLLMGuardrailSpec{
-			GuardrailName: "dup", Guardrail: "aporia",
+			GuardrailName: "dup", Guardrail: guardrailAporia,
 			APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "s", Key: "k"},
 		},
 	}
@@ -418,6 +419,36 @@ func TestRenderConfig_EnvCollisionAcrossKinds(t *testing.T) {
 	require.NoError(t, err)
 	// model -> LITELLM_MODELKEY_DUP, guardrail -> LITELLM_GUARDRAILKEY_DUP (distinct)
 	require.Len(t, got.envVars, 2)
+}
+
+func TestRenderConfig_APIModeSettingsOmitModelListAndEnableDBStore(t *testing.T) {
+	m := model("glm", "glm-5.2", litellmv1alpha1.LiteLLMParams{
+		Model:     "openai/glm-5.2",
+		APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "s", Key: "k"},
+	})
+	g := litellmv1alpha1.LiteLLMGuardrail{
+		ObjectMeta: metav1.ObjectMeta{Name: "gr"},
+		Spec:       litellmv1alpha1.LiteLLMGuardrailSpec{GuardrailName: "g1", Guardrail: guardrailAporia},
+	}
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m}, []litellmv1alpha1.LiteLLMGuardrail{g}, nil)
+	require.NoError(t, err)
+
+	// File config carries the models; the api/settings config does not.
+	full := parse(t, got.yaml)
+	assert.Contains(t, full, "model_list")
+
+	settings := parse(t, got.settingsYAML)
+	_, hasModels := settings["model_list"]
+	assert.False(t, hasModels, "api-mode config must omit model_list (models go via API)")
+	assert.Equal(t, true, settings["general_settings"].(map[string]any)["store_model_in_db"])
+	assert.Contains(t, settings, "guardrails") // guardrails stay in config even in api mode
+
+	// The model's secret env var is still wired regardless of mode.
+	require.Len(t, got.envVars, 1)
+	assert.Equal(t, "LITELLM_MODELKEY_GLM", got.envVars[0].Name)
+	// And the model entry is exposed for the API push.
+	require.Len(t, got.models, 1)
+	assert.Equal(t, "glm-5.2", got.models[0][keyModelName])
 }
 
 func ptr[T any](v T) *T { return &v }

@@ -22,13 +22,24 @@ const (
 	proxyContainer  = appName
 	proxyPort       = 4000
 	httpPortName    = "http"
+
+	keyModel         = "model"
+	keyModelName     = "model_name"
+	keyLitellmParams = "litellm_params"
 )
 
 // renderedConfig is the output of folding a proxy and its resources into a config.yaml.
+// In file mode the controller applies `yaml`/`hash`; in api mode it applies the
+// settings-only `settingsYAML`/`settingsHash` and pushes the entries via the API.
 type renderedConfig struct {
-	yaml    string
-	hash    string
-	envVars []corev1.EnvVar
+	yaml         string
+	hash         string
+	settingsYAML string
+	settingsHash string
+	envVars      []corev1.EnvVar
+	models       []map[string]any
+	guardrails   []map[string]any
+	mcpServers   map[string]any
 }
 
 // envAccumulator collects the secret-backed env vars wired into the proxy
@@ -68,47 +79,104 @@ func renderConfig(
 ) (renderedConfig, error) {
 	env := &envAccumulator{owner: map[string]string{}}
 
+	modelEntries, err := renderModels(models, env)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+	guardrailEntries, err := renderGuardrails(guardrails, env)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+	mcpEntries, err := renderMCPServers(mcpServers, env)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+
+	// Full config (file mode): settings plus the rendered collections.
+	full, err := buildBaseConfig(proxy)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+	full["model_list"] = modelEntries
+	if guardrailEntries != nil {
+		full["guardrails"] = guardrailEntries
+	}
+	if mcpEntries != nil {
+		full["mcp_servers"] = mcpEntries
+	}
+	fullYAML, err := marshalYAML(full)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+
+	// Api-mode config: everything except model_list (models are pushed live via
+	// the admin API), with the DB model store turned on.
+	settings, err := buildBaseConfig(proxy)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+	if guardrailEntries != nil {
+		settings["guardrails"] = guardrailEntries
+	}
+	if mcpEntries != nil {
+		settings["mcp_servers"] = mcpEntries
+	}
+	gs, _ := settings["general_settings"].(map[string]any)
+	if gs == nil {
+		gs = map[string]any{}
+	}
+	gs["store_model_in_db"] = true
+	settings["general_settings"] = gs
+	settingsYAML, err := marshalYAML(settings)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+
+	return renderedConfig{
+		yaml:         fullYAML,
+		hash:         hashString(fullYAML),
+		settingsYAML: settingsYAML,
+		settingsHash: hashString(settingsYAML),
+		envVars:      env.vars,
+		models:       modelEntries,
+		guardrails:   guardrailEntries,
+		mcpServers:   mcpEntries,
+	}, nil
+}
+
+// buildBaseConfig assembles everything except the rendered collections: the
+// extraConfig catch-all, the named top-level blocks, the three settings blocks,
+// and callbacks.
+func buildBaseConfig(proxy *litellmv1alpha1.LiteLLMProxy) (map[string]any, error) {
 	config, err := decodeRaw(proxy.Spec.ExtraConfig)
 	if err != nil {
-		return renderedConfig{}, fmt.Errorf("extraConfig: %w", err)
+		return nil, fmt.Errorf("extraConfig: %w", err)
 	}
 	if config == nil {
 		config = map[string]any{}
 	}
-
-	modelList, err := renderModels(models, env)
-	if err != nil {
-		return renderedConfig{}, err
-	}
-	config["model_list"] = modelList
-
-	if guards, err := renderGuardrails(guardrails, env); err != nil {
-		return renderedConfig{}, err
-	} else if guards != nil {
-		config["guardrails"] = guards
-	}
-
-	if servers, err := renderMCPServers(mcpServers, env); err != nil {
-		return renderedConfig{}, err
-	} else if servers != nil {
-		config["mcp_servers"] = servers
-	}
-
 	for key, raw := range topLevelBlocks(proxy) {
 		if err := mergeValue(config, key, raw); err != nil {
-			return renderedConfig{}, err
+			return nil, err
 		}
 	}
 	if err := applyCallbacks(config, proxy.Spec.Callbacks); err != nil {
-		return renderedConfig{}, err
+		return nil, err
 	}
+	return config, nil
+}
 
+func marshalYAML(config map[string]any) (string, error) {
 	out, err := yaml.Marshal(config)
 	if err != nil {
-		return renderedConfig{}, fmt.Errorf("marshal config: %w", err)
+		return "", fmt.Errorf("marshal config: %w", err)
 	}
-	sum := sha256.Sum256(out)
-	return renderedConfig{yaml: string(out), hash: hex.EncodeToString(sum[:]), envVars: env.vars}, nil
+	return string(out), nil
+}
+
+func hashString(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
 }
 
 func renderModels(models []litellmv1alpha1.LiteLLMModel, env *envAccumulator) ([]map[string]any, error) {
@@ -126,7 +194,7 @@ func renderModels(models []litellmv1alpha1.LiteLLMModel, env *envAccumulator) ([
 			params = map[string]any{}
 		}
 		p := m.Spec.Params
-		params["model"] = p.Model
+		params[keyModel] = p.Model
 		if p.APIVersion != "" {
 			params["api_version"] = p.APIVersion
 		}
@@ -146,7 +214,7 @@ func renderModels(models []litellmv1alpha1.LiteLLMModel, env *envAccumulator) ([
 			return nil, err
 		}
 
-		entry := map[string]any{"model_name": m.Spec.ModelName, "litellm_params": params}
+		entry := map[string]any{keyModelName: m.Spec.ModelName, keyLitellmParams: params}
 		info, err := renderModelInfo(m.Spec.Info)
 		if err != nil {
 			return nil, fmt.Errorf("model %q info: %w", m.Name, err)
@@ -190,7 +258,7 @@ func renderGuardrails(guardrails []litellmv1alpha1.LiteLLMGuardrail, env *envAcc
 			return nil, err
 		}
 
-		entry := map[string]any{"guardrail_name": g.Spec.GuardrailName, "litellm_params": params}
+		entry := map[string]any{"guardrail_name": g.Spec.GuardrailName, keyLitellmParams: params}
 		info, err := decodeRaw(g.Spec.Info)
 		if err != nil {
 			return nil, fmt.Errorf("guardrail %q info: %w", g.Name, err)

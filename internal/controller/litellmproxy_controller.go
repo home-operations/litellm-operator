@@ -21,6 +21,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
+	"github.com/home-operations/litellm-operator/internal/litellmclient"
 )
 
 // LiteLLMProxyReconciler reconciles a LiteLLMProxy and the Deployment, Service,
@@ -36,6 +37,7 @@ type LiteLLMProxyReconciler struct {
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmmodels;litellmguardrails;litellmmcpservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile renders the proxy config from matching models and applies the owned resources.
@@ -68,10 +70,16 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, r.markFailed(ctx, &proxy, "RenderFailed", err.Error())
 	}
 
-	if err := r.applyConfigMap(ctx, &proxy, rendered.yaml); err != nil {
+	apiMode := proxy.Spec.ApplyMode == "api"
+	cfgYAML, cfgHash := rendered.yaml, rendered.hash
+	if apiMode {
+		cfgYAML, cfgHash = rendered.settingsYAML, rendered.settingsHash
+	}
+
+	if err := r.applyConfigMap(ctx, &proxy, cfgYAML); err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply configmap: %w", err)
 	}
-	ready, err := r.applyDeployment(ctx, &proxy, rendered)
+	ready, err := r.applyDeployment(ctx, &proxy, cfgHash, rendered.envVars)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply deployment: %w", err)
 	}
@@ -82,8 +90,14 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("reconcile route: %w", err)
 	}
 
-	logger.Info("reconciled proxy", "models", len(models), "configHash", rendered.hash)
-	return ctrl.Result{}, r.markReady(ctx, &proxy, rendered.hash, int32(len(models)), ready)
+	if apiMode {
+		if err := r.syncModelsViaAPI(ctx, &proxy, rendered.models); err != nil {
+			return ctrl.Result{}, r.markFailed(ctx, &proxy, "APISyncFailed", err.Error())
+		}
+	}
+
+	logger.Info("reconciled proxy", "mode", proxy.Spec.ApplyMode, "models", len(models), "configHash", cfgHash)
+	return ctrl.Result{}, r.markReady(ctx, &proxy, cfgHash, int32(len(models)), ready)
 }
 
 func (r *LiteLLMProxyReconciler) matchingModels(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) ([]litellmv1alpha1.LiteLLMModel, error) {
@@ -173,8 +187,8 @@ func (r *LiteLLMProxyReconciler) applyConfigMap(ctx context.Context, proxy *lite
 // current ready replica count. CreateOrUpdate leaves the live status on the
 // object, so there is no need to re-Get it (which would race the cache); the
 // Owns watch re-reconciles the proxy as the count changes.
-func (r *LiteLLMProxyReconciler) applyDeployment(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, rendered renderedConfig) (int32, error) {
-	desired := buildDeployment(proxy, rendered.hash, rendered.envVars)
+func (r *LiteLLMProxyReconciler) applyDeployment(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, configHash string, envVars []corev1.EnvVar) (int32, error) {
+	desired := buildDeployment(proxy, configHash, envVars)
 	deploy := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: desired.Name, Namespace: desired.Namespace}}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
 		deploy.Labels = desired.Labels
@@ -219,6 +233,38 @@ func (r *LiteLLMProxyReconciler) reconcileRoute(ctx context.Context, proxy *lite
 		return controllerutil.SetControllerReference(proxy, route, r.Scheme)
 	})
 	return err
+}
+
+// syncModelsViaAPI pushes the rendered model entries to the proxy's admin API.
+func (r *LiteLLMProxyReconciler) syncModelsViaAPI(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, desired []map[string]any) error {
+	if proxy.Spec.APIAccess == nil {
+		return fmt.Errorf("applyMode=api requires spec.apiAccess")
+	}
+	key, err := r.readSecretKey(ctx, proxy.Namespace, proxy.Spec.APIAccess.MasterKeyRef)
+	if err != nil {
+		return err
+	}
+	endpoint := proxy.Spec.APIAccess.Endpoint
+	if endpoint == "" {
+		port := proxy.Spec.Service.Port
+		if port == 0 {
+			port = proxyPort
+		}
+		endpoint = fmt.Sprintf("http://%s.%s.svc:%d", proxy.Name, proxy.Namespace, port)
+	}
+	return syncModels(ctx, litellmclient.New(endpoint, key, nil), desired)
+}
+
+func (r *LiteLLMProxyReconciler) readSecretKey(ctx context.Context, namespace string, ref litellmv1alpha1.SecretKeyRef) (string, error) {
+	var secret corev1.Secret
+	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: ref.Name}, &secret); err != nil {
+		return "", err
+	}
+	value, ok := secret.Data[ref.Key]
+	if !ok {
+		return "", fmt.Errorf("secret %s/%s has no key %q", namespace, ref.Name, ref.Key)
+	}
+	return string(value), nil
 }
 
 func (r *LiteLLMProxyReconciler) markReady(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, hash string, models, ready int32) error {

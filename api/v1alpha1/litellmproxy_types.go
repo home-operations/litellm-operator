@@ -57,6 +57,18 @@ type CallbackSpec struct {
 	Settings *runtime.RawExtension `json:"settings,omitempty"`
 }
 
+// APIAccessSpec configures the admin API connection used when applyMode is "api".
+type APIAccessSpec struct {
+	// Endpoint of the proxy admin API. Defaults to the operator-managed Service,
+	// i.e. http://<proxy>.<namespace>.svc:<service port>.
+	// +optional
+	Endpoint string `json:"endpoint,omitempty"`
+
+	// MasterKeyRef sources the proxy master key used to authenticate admin calls.
+	// +kubebuilder:validation:Required
+	MasterKeyRef SecretKeyRef `json:"masterKeyRef"`
+}
+
 // ProxyServiceSpec configures the Service fronting the proxy.
 type ProxyServiceSpec struct {
 	// Type of Service to create.
@@ -84,6 +96,19 @@ type LiteLLMProxySpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// ApplyMode selects how models, guardrails and MCP servers reach the proxy:
+	// "file" renders them into config.yaml and rolls the Deployment on change;
+	// "api" pushes them to the proxy's DB-backed admin API live, with no restart
+	// (requires the proxy to run in DB mode, i.e. Postgres, and apiAccess set).
+	// +kubebuilder:validation:Enum=file;api
+	// +kubebuilder:default=file
+	// +optional
+	ApplyMode string `json:"applyMode,omitempty"`
+
+	// APIAccess configures the admin API connection used when applyMode is "api".
+	// +optional
+	APIAccess *APIAccessSpec `json:"apiAccess,omitempty"`
 
 	// ModelSelector selects which LiteLLMModel resources (in this namespace) this
 	// proxy serves. When omitted, the proxy adopts every LiteLLMModel in its

@@ -72,6 +72,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
 {{- if .Values.webhook.enabled }}
 - apiGroups:
   - ""

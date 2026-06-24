@@ -38,6 +38,12 @@ func (v *Validator) ValidateDelete(context.Context, *litellmv1alpha1.LiteLLMProx
 }
 
 func (v *Validator) validate(p *litellmv1alpha1.LiteLLMProxy) (admission.Warnings, error) {
+	if p.Spec.ApplyMode == "api" {
+		if p.Spec.APIAccess == nil || p.Spec.APIAccess.MasterKeyRef.Name == "" {
+			return nil, fmt.Errorf("spec.applyMode=api requires spec.apiAccess.masterKeyRef")
+		}
+	}
+
 	route := p.Spec.Route
 	if route == nil {
 		return nil, nil

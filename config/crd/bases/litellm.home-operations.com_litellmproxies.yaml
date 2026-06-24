@@ -57,6 +57,43 @@ spec:
             description: LiteLLMProxySpec defines a managed LiteLLM proxy and the
               models it serves.
             properties:
+              apiAccess:
+                description: APIAccess configures the admin API connection used when
+                  applyMode is "api".
+                properties:
+                  endpoint:
+                    description: |-
+                      Endpoint of the proxy admin API. Defaults to the operator-managed Service,
+                      i.e. http://<proxy>.<namespace>.svc:<service port>.
+                    type: string
+                  masterKeyRef:
+                    description: MasterKeyRef sources the proxy master key used to
+                      authenticate admin calls.
+                    properties:
+                      key:
+                        description: Key within the Secret holding the value.
+                        type: string
+                      name:
+                        description: Name of the Secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                required:
+                - masterKeyRef
+                type: object
+              applyMode:
+                default: file
+                description: |-
+                  ApplyMode selects how models, guardrails and MCP servers reach the proxy:
+                  "file" renders them into config.yaml and rolls the Deployment on change;
+                  "api" pushes them to the proxy's DB-backed admin API live, with no restart
+                  (requires the proxy to run in DB mode, i.e. Postgres, and apiAccess set).
+                enum:
+                - file
+                - api
+                type: string
               assistantSettings:
                 description: AssistantSettings maps to the top-level assistant_settings
                   block.

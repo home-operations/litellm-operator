@@ -83,6 +83,20 @@ blocks take precedence over `extraConfig`. The three settings blocks
 (`generalSettings`, `routerSettings`, `litellmSettings`) remain free-form
 passthroughs.
 
+## Apply modes
+
+`spec.applyMode` controls how models reach the proxy. The default, `file`, renders
+everything into `config.yaml` and rolls the Deployment on change — declarative,
+GitOps-friendly, and Redis-only (no database). `api` instead pushes models to the
+proxy's DB-backed admin API live, with no restart; it requires the proxy to run
+in DB mode (Postgres) and `spec.apiAccess.masterKeyRef` to authenticate. In api
+mode guardrails, MCP servers and settings still render into `config.yaml` (with
+`store_model_in_db: true`); only the volatile `model_list` goes over the API.
+Secret-backed keys keep the `os.environ/...` indirection in both modes, so the
+operator wires env vars onto the Deployment and never reads secret values itself.
+The operator only manages models it created (tagged in `model_info`), leaving
+UI- or hand-added models alone.
+
 ## Validation
 
 A validating admission webhook (enabled by default) rejects mistakes before they

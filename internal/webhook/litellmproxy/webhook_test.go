@@ -18,6 +18,21 @@ func proxyWith(route *litellmv1alpha1.ProxyRoute) *litellmv1alpha1.LiteLLMProxy 
 	}
 }
 
+func TestValidate_APIModeRequiresMasterKeyRef(t *testing.T) {
+	v := &Validator{}
+	p := &litellmv1alpha1.LiteLLMProxy{
+		ObjectMeta: metav1.ObjectMeta{Name: "main", Namespace: "ai"},
+		Spec:       litellmv1alpha1.LiteLLMProxySpec{ApplyMode: "api"},
+	}
+	_, err := v.ValidateCreate(context.Background(), p)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "apiAccess.masterKeyRef")
+
+	p.Spec.APIAccess = &litellmv1alpha1.APIAccessSpec{MasterKeyRef: litellmv1alpha1.SecretKeyRef{Name: "litellm", Key: "MASTER_KEY"}}
+	_, err = v.ValidateCreate(context.Background(), p)
+	require.NoError(t, err)
+}
+
 func TestValidate_NoRouteIsValid(t *testing.T) {
 	v := &Validator{}
 	_, err := v.ValidateCreate(context.Background(), proxyWith(nil))
