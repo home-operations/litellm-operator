@@ -74,6 +74,16 @@ type LiteLLMProxySpec struct {
 	// Resources sets the proxy container resource requirements.
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// LivenessProbe overrides the proxy liveness probe. Defaults to an HTTP GET
+	// of /health/liveliness on the proxy port.
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// ReadinessProbe overrides the proxy readiness probe. Defaults to an HTTP GET
+	// of /health/readiness on the proxy port.
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // LiteLLMProxyStatus reports the observed state of the proxy.

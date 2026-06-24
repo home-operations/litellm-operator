@@ -56,11 +56,32 @@ func buildService(proxy *litellmv1alpha1.LiteLLMProxy) *corev1.Service {
 	}
 }
 
+func defaultProbe(path string) *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{Path: path, Port: intstr.FromInt32(proxyPort)},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      5,
+		FailureThreshold:    3,
+	}
+}
+
 func buildDeployment(proxy *litellmv1alpha1.LiteLLMProxy, configHash string, modelEnv []corev1.EnvVar) *appsv1.Deployment {
 	labels := selectorLabels(proxy)
 	env := make([]corev1.EnvVar, 0, len(proxy.Spec.Env)+len(modelEnv))
 	env = append(env, proxy.Spec.Env...)
 	env = append(env, modelEnv...)
+
+	liveness := proxy.Spec.LivenessProbe
+	if liveness == nil {
+		liveness = defaultProbe("/health/liveliness")
+	}
+	readiness := proxy.Spec.ReadinessProbe
+	if readiness == nil {
+		readiness = defaultProbe("/health/readiness")
+	}
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -88,7 +109,9 @@ func buildDeployment(proxy *litellmv1alpha1.LiteLLMProxy, configHash string, mod
 							ContainerPort: proxyPort,
 							Protocol:      corev1.ProtocolTCP,
 						}},
-						Resources: proxy.Spec.Resources,
+						Resources:      proxy.Spec.Resources,
+						LivenessProbe:  liveness,
+						ReadinessProbe: readiness,
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "config",
 							MountPath: configMountPath,
