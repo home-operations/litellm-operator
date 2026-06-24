@@ -46,6 +46,16 @@ func TestBuildDeployment_ProbeOverrideWins(t *testing.T) {
 	assert.Equal(t, "/health/readiness", c.ReadinessProbe.HTTPGet.Path)
 }
 
+func TestBuildService_DefaultsPortWhenUnset(t *testing.T) {
+	// A proxy with no service block (e.g. minimal api-mode) must still get a valid port.
+	proxy := &litellmv1alpha1.LiteLLMProxy{ObjectMeta: metav1.ObjectMeta{Name: proxyName, Namespace: "ai"}}
+	svc := buildService(proxy)
+	assert.Equal(t, int32(proxyPort), svc.Spec.Ports[0].Port)
+
+	proxy.Spec.Service.Port = 8080
+	assert.Equal(t, int32(8080), buildService(proxy).Spec.Ports[0].Port)
+}
+
 func TestBuildDeployment_ConfigHashOnPodTemplate(t *testing.T) {
 	proxy := &litellmv1alpha1.LiteLLMProxy{ObjectMeta: metav1.ObjectMeta{Name: proxyName, Namespace: "ai"}}
 	d := buildDeployment(proxy, "abc123", nil)

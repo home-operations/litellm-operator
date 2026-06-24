@@ -246,11 +246,7 @@ func (r *LiteLLMProxyReconciler) syncModelsViaAPI(ctx context.Context, proxy *li
 	}
 	endpoint := proxy.Spec.APIAccess.Endpoint
 	if endpoint == "" {
-		port := proxy.Spec.Service.Port
-		if port == 0 {
-			port = proxyPort
-		}
-		endpoint = fmt.Sprintf("http://%s.%s.svc:%d", proxy.Name, proxy.Namespace, port)
+		endpoint = fmt.Sprintf("http://%s.%s.svc:%d", proxy.Name, proxy.Namespace, servicePort(proxy))
 	}
 	return syncModels(ctx, litellmclient.New(endpoint, key, nil), desired)
 }

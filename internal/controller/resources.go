@@ -37,6 +37,13 @@ func buildConfigMap(proxy *litellmv1alpha1.LiteLLMProxy, config string) *corev1.
 	}
 }
 
+func servicePort(proxy *litellmv1alpha1.LiteLLMProxy) int32 {
+	if proxy.Spec.Service.Port != 0 {
+		return proxy.Spec.Service.Port
+	}
+	return proxyPort
+}
+
 func buildService(proxy *litellmv1alpha1.LiteLLMProxy) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -49,7 +56,7 @@ func buildService(proxy *litellmv1alpha1.LiteLLMProxy) *corev1.Service {
 			Selector: selectorLabels(proxy),
 			Ports: []corev1.ServicePort{{
 				Name:       httpPortName,
-				Port:       proxy.Spec.Service.Port,
+				Port:       servicePort(proxy),
 				TargetPort: intstr.FromInt32(proxyPort),
 				Protocol:   corev1.ProtocolTCP,
 			}},
@@ -79,10 +86,7 @@ func buildRoute(proxy *litellmv1alpha1.LiteLLMProxy) *gatewayv1.HTTPRoute {
 		hostnames = append(hostnames, gatewayv1.Hostname(h))
 	}
 
-	port := proxy.Spec.Service.Port
-	if port == 0 {
-		port = proxyPort
-	}
+	port := servicePort(proxy)
 
 	return &gatewayv1.HTTPRoute{
 		ObjectMeta: metav1.ObjectMeta{

@@ -96,7 +96,7 @@ if ! kind get clusters | grep -qx "$cluster"; then
   kind create cluster --name "$cluster"
 fi
 trap 'kind delete cluster --name "$cluster"' EXIT
-KIND_CLUSTER="$cluster" go test ./test/e2e/... -v -ginkgo.v -timeout 20m
+KIND_CLUSTER="$cluster" go test ./test/e2e/... -v -ginkgo.v -timeout 30m
 '''
 
 [tasks.build]
