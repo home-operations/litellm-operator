@@ -57,6 +57,49 @@ spec:
             description: LiteLLMProxySpec defines a managed LiteLLM proxy and the
               models it serves.
             properties:
+              assistantSettings:
+                description: AssistantSettings maps to the top-level assistant_settings
+                  block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              callbacks:
+                description: Callbacks configures litellm logging/observability callbacks.
+                properties:
+                  callbacks:
+                    description: Callbacks run on both success and failure (litellm_settings.callbacks).
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  failure:
+                    description: Failure callbacks (litellm_settings.failure_callback).
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  settings:
+                    description: Settings maps to the top-level callback_settings
+                      block (per-callback config).
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  success:
+                    description: Success callbacks (litellm_settings.success_callback),
+                      e.g. ["prometheus","langfuse"].
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                type: object
+              credentialList:
+                description: CredentialList maps to the top-level credential_list
+                  block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              defaultVertexConfig:
+                description: DefaultVertexConfig maps to the top-level default_vertex_config
+                  block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               env:
                 description: Env is injected into the proxy container (e.g. REDIS_HOST,
                   master key).
@@ -265,12 +308,25 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
+              environmentVariables:
+                description: EnvironmentVariables maps to the top-level environment_variables
+                  block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               extraConfig:
                 description: |-
-                  ExtraConfig is merged into the top level of the rendered config.yaml,
-                  covering any config key without a dedicated field (e.g. guardrails,
-                  mcp_servers, callback_settings, environment_variables). The model_list and
-                  the typed settings blocks above take precedence over keys set here.
+                  ExtraConfig is merged into the top level of the rendered config.yaml as a
+                  final catch-all for any key without a dedicated field. The generated
+                  model_list, guardrails, mcp_servers and the typed blocks take precedence.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              filesSettings:
+                description: FilesSettings maps to the top-level files_settings block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              finetuneSettings:
+                description: FinetuneSettings maps to the top-level finetune_settings
+                  block.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               generalSettings:
@@ -489,6 +545,10 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+              prompts:
+                description: Prompts maps to the top-level prompts block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               readinessProbe:
                 description: |-
                   ReadinessProbe overrides the proxy readiness probe. Defaults to an HTTP GET
@@ -765,6 +825,11 @@ spec:
                     description: Type of Service to create.
                     type: string
                 type: object
+              vectorStoreRegistry:
+                description: VectorStoreRegistry maps to the top-level vector_store_registry
+                  block.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             type: object
           status:
             description: LiteLLMProxyStatus reports the observed state of the proxy.

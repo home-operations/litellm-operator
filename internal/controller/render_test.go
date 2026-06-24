@@ -20,6 +20,11 @@ const (
 
 func raw(s string) *runtime.RawExtension { return &runtime.RawExtension{Raw: []byte(s)} }
 
+// renderM renders with only models (no guardrails/MCP servers).
+func renderM(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.LiteLLMModel) (renderedConfig, error) {
+	return renderConfig(proxy, models, nil, nil)
+}
+
 func model(name, modelName string, params litellmv1alpha1.LiteLLMParams) litellmv1alpha1.LiteLLMModel {
 	return litellmv1alpha1.LiteLLMModel{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
@@ -41,7 +46,7 @@ func TestRenderConfig_SecretKeyBecomesEnvRefNotInlineSecret(t *testing.T) {
 		APIBase:   "https://api.z.ai/v4",
 		APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "zai", Key: secretKeyKey},
 	})
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	// The rendered config references the env var, never the secret name or key.
@@ -71,7 +76,7 @@ func TestRenderConfig_LiteralAPIKeyNoEnvVar(t *testing.T) {
 		Model:  "openai/gemma",
 		APIKey: "os.environ/LLAMA_API_KEY",
 	})
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	assert.Empty(t, got.envVars)
@@ -97,7 +102,7 @@ func TestRenderConfig_TypedFieldsAndPassthroughMerge(t *testing.T) {
 		SupportsFunctionCalling: ptr(true),
 	}
 
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	cfg := parse(t, got.yaml)
@@ -131,7 +136,7 @@ func TestRenderConfig_TypedModelInfoMapsToSnakeCase(t *testing.T) {
 		SupportsVision:          ptr(false),
 		Extra:                   raw(`{"custom_key": "v"}`),
 	}
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	info := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["model_info"].(map[string]any)
@@ -151,7 +156,7 @@ func TestRenderConfig_APIBaseRefBecomesEnvRef(t *testing.T) {
 		APIBaseRef: &litellmv1alpha1.SecretKeyRef{Name: "litellm", Key: "SUPER_SERVER_URL"},
 		APIKeyRef:  &litellmv1alpha1.SecretKeyRef{Name: "litellm", Key: "SUPER_SERVER_PASS"},
 	})
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["litellm_params"].(map[string]any)
@@ -173,7 +178,7 @@ func TestRenderConfig_TypedFieldWinsOverAdditional(t *testing.T) {
 		Model:      "openai/real",
 		Additional: raw(`{"model": "openai/should-be-overridden"}`),
 	})
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["litellm_params"].(map[string]any)
 	assert.Equal(t, "openai/real", params["model"])
@@ -184,9 +189,9 @@ func TestRenderConfig_DeterministicAcrossInputOrder(t *testing.T) {
 	b := model("bbb", "b", litellmv1alpha1.LiteLLMParams{Model: "openai/b"})
 	c := model("ccc", "c", litellmv1alpha1.LiteLLMParams{Model: "openai/c"})
 
-	first, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{a, b, c})
+	first, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{a, b, c})
 	require.NoError(t, err)
-	shuffled, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{c, a, b})
+	shuffled, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{c, a, b})
 	require.NoError(t, err)
 
 	assert.Equal(t, first.yaml, shuffled.yaml)
@@ -201,12 +206,12 @@ func TestRenderConfig_DeterministicAcrossInputOrder(t *testing.T) {
 
 func TestRenderConfig_HashChangesWithContent(t *testing.T) {
 	base := model("m", "m", litellmv1alpha1.LiteLLMParams{Model: modelOpenAIM})
-	got1, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{base})
+	got1, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{base})
 	require.NoError(t, err)
 
 	changed := base
 	changed.Spec.Params.Model = "openai/m2"
-	got2, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{changed})
+	got2, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{changed})
 	require.NoError(t, err)
 
 	assert.NotEqual(t, got1.hash, got2.hash)
@@ -220,7 +225,7 @@ func TestRenderConfig_GlobalSettingsBlocks(t *testing.T) {
 			LitellmSettings: raw(`{"cache": true}`),
 		},
 	}
-	got, err := renderConfig(proxy, nil)
+	got, err := renderM(proxy, nil)
 	require.NoError(t, err)
 
 	cfg := parse(t, got.yaml)
@@ -240,7 +245,7 @@ func TestRenderConfig_ExtraConfigMergesTopLevelKeys(t *testing.T) {
 			}`),
 		},
 	}
-	got, err := renderConfig(proxy, nil)
+	got, err := renderM(proxy, nil)
 	require.NoError(t, err)
 
 	cfg := parse(t, got.yaml)
@@ -256,7 +261,7 @@ func TestRenderConfig_ModelListWinsOverExtraConfig(t *testing.T) {
 	proxy := &litellmv1alpha1.LiteLLMProxy{
 		Spec: litellmv1alpha1.LiteLLMProxySpec{ExtraConfig: raw(`{"model_list":[{"model_name":"bogus"}]}`)},
 	}
-	got, err := renderConfig(proxy, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(proxy, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	list := parse(t, got.yaml)["model_list"].([]any)
@@ -266,7 +271,7 @@ func TestRenderConfig_ModelListWinsOverExtraConfig(t *testing.T) {
 
 func TestRenderConfig_OmitsUnsetGlobalSettingsAndOptionalParams(t *testing.T) {
 	m := model("m", "m", litellmv1alpha1.LiteLLMParams{Model: modelOpenAIM})
-	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
 
 	cfg := parse(t, got.yaml)
@@ -294,16 +299,125 @@ func TestRenderConfig_RejectsCollidingAPIKeyEnvVars(t *testing.T) {
 	dash := model("minimax-m3", "a", litellmv1alpha1.LiteLLMParams{Model: "openai/a", APIKeyRef: ref("s1")})
 	dot := model("minimax.m3", "b", litellmv1alpha1.LiteLLMParams{Model: "openai/b", APIKeyRef: ref("s2")})
 
-	_, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{dash, dot})
+	_, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{dash, dot})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "same env var")
 }
 
 func TestRenderConfig_InvalidJSONErrors(t *testing.T) {
 	m := model("m", "m", litellmv1alpha1.LiteLLMParams{Model: modelOpenAIM, Additional: raw(`{not json`)})
-	_, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	_, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "m")
+}
+
+func TestRenderConfig_GuardrailsRenderedWithSecretRef(t *testing.T) {
+	on := true
+	g := litellmv1alpha1.LiteLLMGuardrail{
+		ObjectMeta: metav1.ObjectMeta{Name: "aporia-pre"},
+		Spec: litellmv1alpha1.LiteLLMGuardrailSpec{
+			GuardrailName: "aporia-pre-guard",
+			Guardrail:     "aporia",
+			Mode:          "pre_call",
+			DefaultOn:     &on,
+			APIKeyRef:     &litellmv1alpha1.SecretKeyRef{Name: "gr", Key: "APORIA_KEY"},
+			Info:          raw(`{"description":"pii"}`),
+		},
+	}
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, nil, []litellmv1alpha1.LiteLLMGuardrail{g}, nil)
+	require.NoError(t, err)
+
+	entry := parse(t, got.yaml)["guardrails"].([]any)[0].(map[string]any)
+	assert.Equal(t, "aporia-pre-guard", entry["guardrail_name"])
+	lp := entry["litellm_params"].(map[string]any)
+	assert.Equal(t, "aporia", lp["guardrail"])
+	assert.Equal(t, "pre_call", lp["mode"])
+	assert.Equal(t, true, lp["default_on"])
+	assert.Equal(t, "os.environ/LITELLM_GUARDRAILKEY_APORIA_PRE", lp["api_key"])
+	assert.Equal(t, "pii", entry["guardrail_info"].(map[string]any)["description"])
+	require.Len(t, got.envVars, 1)
+	assert.Equal(t, "APORIA_KEY", got.envVars[0].ValueFrom.SecretKeyRef.Key)
+}
+
+func TestRenderConfig_MCPServersRenderedAsMap(t *testing.T) {
+	s := litellmv1alpha1.LiteLLMMCPServer{
+		ObjectMeta: metav1.ObjectMeta{Name: "gh"},
+		Spec: litellmv1alpha1.LiteLLMMCPServerSpec{
+			Alias:        "github",
+			URL:          "https://api.githubcopilot.com/mcp",
+			Transport:    "http",
+			AuthTokenRef: &litellmv1alpha1.SecretKeyRef{Name: "mcp", Key: "GH_PAT"},
+			Params:       raw(`{"allowed_tools":["search"]}`),
+		},
+	}
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, nil, nil, []litellmv1alpha1.LiteLLMMCPServer{s})
+	require.NoError(t, err)
+
+	servers := parse(t, got.yaml)["mcp_servers"].(map[string]any)
+	gh := servers["github"].(map[string]any)
+	assert.Equal(t, "https://api.githubcopilot.com/mcp", gh["url"])
+	assert.Equal(t, "http", gh["transport"])
+	assert.Equal(t, "os.environ/LITELLM_MCPTOKEN_GH", gh["authentication_token"])
+	assert.Contains(t, gh["allowed_tools"], "search")
+	require.Len(t, got.envVars, 1)
+}
+
+func TestRenderConfig_CallbacksMergeIntoLitellmSettingsAndCallbackSettings(t *testing.T) {
+	proxy := &litellmv1alpha1.LiteLLMProxy{
+		Spec: litellmv1alpha1.LiteLLMProxySpec{
+			LitellmSettings: raw(`{"cache":true}`),
+			Callbacks: &litellmv1alpha1.CallbackSpec{
+				Success:  []string{"prometheus", "langfuse"},
+				Failure:  []string{"sentry"},
+				Settings: raw(`{"otel":{"exporter":"otlp"}}`),
+			},
+		},
+	}
+	got, err := renderConfig(proxy, nil, nil, nil)
+	require.NoError(t, err)
+
+	cfg := parse(t, got.yaml)
+	ls := cfg["litellm_settings"].(map[string]any)
+	assert.Equal(t, true, ls["cache"]) // preserved
+	assert.Equal(t, []any{"prometheus", "langfuse"}, ls["success_callback"])
+	assert.Equal(t, []any{"sentry"}, ls["failure_callback"])
+	assert.Equal(t, "otlp", cfg["callback_settings"].(map[string]any)["otel"].(map[string]any)["exporter"])
+}
+
+func TestRenderConfig_NamedTopLevelBlocks(t *testing.T) {
+	proxy := &litellmv1alpha1.LiteLLMProxy{
+		Spec: litellmv1alpha1.LiteLLMProxySpec{
+			EnvironmentVariables: raw(`{"LANGFUSE_HOST":"https://lf"}`),
+			CredentialList:       raw(`[{"credential_name":"c1"}]`),
+		},
+	}
+	got, err := renderConfig(proxy, nil, nil, nil)
+	require.NoError(t, err)
+
+	cfg := parse(t, got.yaml)
+	assert.Equal(t, "https://lf", cfg["environment_variables"].(map[string]any)["LANGFUSE_HOST"])
+	// credential_list is a list, preserved as such
+	assert.Equal(t, "c1", cfg["credential_list"].([]any)[0].(map[string]any)["credential_name"])
+}
+
+func TestRenderConfig_EnvCollisionAcrossKinds(t *testing.T) {
+	m := model("dup", "m", litellmv1alpha1.LiteLLMParams{
+		Model:     modelOpenAIM,
+		APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "s", Key: "k"},
+	})
+	// A guardrail whose key env var would collide with... a different prefix, so no collision.
+	// Instead, two models with names colliding is already covered; here assert distinct prefixes don't collide.
+	g := litellmv1alpha1.LiteLLMGuardrail{
+		ObjectMeta: metav1.ObjectMeta{Name: "dup"},
+		Spec: litellmv1alpha1.LiteLLMGuardrailSpec{
+			GuardrailName: "dup", Guardrail: "aporia",
+			APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "s", Key: "k"},
+		},
+	}
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m}, []litellmv1alpha1.LiteLLMGuardrail{g}, nil)
+	require.NoError(t, err)
+	// model -> LITELLM_MODELKEY_DUP, guardrail -> LITELLM_GUARDRAILKEY_DUP (distinct)
+	require.Len(t, got.envVars, 2)
 }
 
 func ptr[T any](v T) *T { return &v }

@@ -25,4 +25,20 @@ resources:
   kind: LiteLLMModel
   path: github.com/home-operations/litellm-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: home-operations.com
+  group: litellm
+  kind: LiteLLMGuardrail
+  path: github.com/home-operations/litellm-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: home-operations.com
+  group: litellm
+  kind: LiteLLMMCPServer
+  path: github.com/home-operations/litellm-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"

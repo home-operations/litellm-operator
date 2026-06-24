@@ -26,36 +26,36 @@ operator:
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMProxy
 metadata:
-  name: main
-  namespace: ai
+    name: main
+    namespace: ai
 spec:
-  routerSettings:
-    routing_strategy: simple-shuffle
-  # No modelSelector: this proxy adopts every LiteLLMModel in its namespace.
-  route:
-    hostnames:
-      - litellm.example.com
-    parentRefs:
-      - name: envoy-external
-        namespace: network
+    routerSettings:
+        routing_strategy: simple-shuffle
+    # No modelSelector: this proxy adopts every LiteLLMModel in its namespace.
+    route:
+        hostnames:
+            - litellm.example.com
+        parentRefs:
+            - name: envoy-external
+              namespace: network
 ---
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
-  name: glm-5-2
-  namespace: ai
+    name: glm-5-2
+    namespace: ai
 spec:
-  modelName: glm-5.2
-  params:
-    model: openai/glm-5.2
-    apiBase: https://api.z.ai/api/coding/paas/v4
-    apiKeyRef:
-      name: litellm-secrets
-      key: ZAI_API_KEY
-    dropParams: true
-  info:
-    maxInputTokens: 1000000
-    supportsFunctionCalling: true
+    modelName: glm-5.2
+    params:
+        model: openai/glm-5.2
+        apiBase: https://api.z.ai/api/coding/paas/v4
+        apiKeyRef:
+            name: litellm-secrets
+            key: ZAI_API_KEY
+        dropParams: true
+    info:
+        maxInputTokens: 1000000
+        supportsFunctionCalling: true
 ```
 
 Models bind to a proxy in one of three ways, most specific first: a model's
@@ -68,12 +68,20 @@ var and keeps them out of the rendered config); `apiKey`/`apiBase` take literals
 When `spec.route` is set, the operator creates and owns a Gateway API HTTPRoute
 fronting the proxy Service; the Gateway API CRDs are only required if you use it.
 
-The proxy's `generalSettings`, `routerSettings`, and `litellmSettings` are
-free-form passthroughs, and `spec.extraConfig` is merged into the top level of
-the rendered `config.yaml` for any other key litellm accepts (`guardrails`,
-`mcp_servers`, `callback_settings`, `environment_variables`, ...), so the whole
-config surface is expressible, not just the typed fields. The generated
-`model_list` and the typed settings blocks take precedence over `extraConfig`.
+Guardrails and MCP servers are their own CRDs — `LiteLLMGuardrail` and
+`LiteLLMMCPServer` — adopted by a proxy the same way models are (proxyRef,
+selector, or namespace default) and rendered into the proxy's `guardrails` list
+and `mcp_servers` map, with the same `apiKeyRef`/`authTokenRef` secret wiring.
+Callbacks are a typed proxy field (`spec.callbacks` → `success_callback`,
+`failure_callback`, `callbacks`, and the top-level `callback_settings`). Every
+other top-level litellm config key has a named field on the proxy
+(`environmentVariables`, `credentialList`, `defaultVertexConfig`, `filesSettings`,
+`assistantSettings`, `finetuneSettings`, `prompts`, `vectorStoreRegistry`), and
+`spec.extraConfig` is a final top-level catch-all for anything litellm adds
+later. The generated `model_list`, `guardrails`, `mcp_servers` and the typed
+blocks take precedence over `extraConfig`. The three settings blocks
+(`generalSettings`, `routerSettings`, `litellmSettings`) remain free-form
+passthroughs.
 
 ## Validation
 

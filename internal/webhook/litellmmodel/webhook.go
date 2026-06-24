@@ -45,6 +45,9 @@ func (v *Validator) validate(ctx context.Context, m *litellmv1alpha1.LiteLLMMode
 	if p.APIKeyRef != nil && p.APIKey != "" {
 		return nil, fmt.Errorf("spec.params.apiKey and spec.params.apiKeyRef are mutually exclusive; set only one")
 	}
+	if p.APIBaseRef != nil && p.APIBase != "" {
+		return nil, fmt.Errorf("spec.params.apiBase and spec.params.apiBaseRef are mutually exclusive; set only one")
+	}
 	if p.APIKeyRef == nil {
 		return nil, nil
 	}

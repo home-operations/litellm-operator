@@ -21,39 +21,110 @@ const (
 	configMountPath = "/etc/litellm"
 	proxyContainer  = appName
 	proxyPort       = 4000
+	httpPortName    = "http"
 )
 
-// renderedConfig is the output of folding a proxy and its models into a config.yaml.
+// renderedConfig is the output of folding a proxy and its resources into a config.yaml.
 type renderedConfig struct {
 	yaml    string
 	hash    string
 	envVars []corev1.EnvVar
 }
 
-// renderConfig builds the proxy's config.yaml deterministically from the given
-// models and proxy settings. Models are sorted by name so the output (and its
-// hash) is stable regardless of List ordering. Secret-backed API keys are
-// emitted as os.environ references and returned as env vars to wire into the
-// Deployment, keeping secret values out of the ConfigMap.
-func renderConfig(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.LiteLLMModel) (renderedConfig, error) {
-	sorted := make([]litellmv1alpha1.LiteLLMModel, len(models))
-	copy(sorted, models)
+// envAccumulator collects the secret-backed env vars wired into the proxy
+// Deployment and guards against two resources deriving the same env var name.
+type envAccumulator struct {
+	vars  []corev1.EnvVar
+	owner map[string]string
+}
+
+// secretParam sets params[key] from either a Secret ref (wiring an env var and
+// referencing it via os.environ) or a literal, leaving it unset when neither is given.
+func (a *envAccumulator) secretParam(params map[string]any, key, literal string, ref *litellmv1alpha1.SecretKeyRef, envName, ownerName string) error {
+	switch {
+	case ref != nil:
+		if prev, ok := a.owner[envName]; ok {
+			return fmt.Errorf("%q and %q derive the same env var %q", prev, ownerName, envName)
+		}
+		a.owner[envName] = ownerName
+		params[key] = "os.environ/" + envName
+		a.vars = append(a.vars, secretEnv(envName, ref))
+	case literal != "":
+		params[key] = literal
+	}
+	return nil
+}
+
+// renderConfig builds the proxy's config.yaml deterministically from the adopted
+// models, guardrails and MCP servers plus the proxy settings. Collections are
+// sorted by name so the output (and its hash) is stable regardless of List order.
+// Secret-backed values are emitted as os.environ references and returned as env
+// vars to wire into the Deployment, keeping secret values out of the ConfigMap.
+func renderConfig(
+	proxy *litellmv1alpha1.LiteLLMProxy,
+	models []litellmv1alpha1.LiteLLMModel,
+	guardrails []litellmv1alpha1.LiteLLMGuardrail,
+	mcpServers []litellmv1alpha1.LiteLLMMCPServer,
+) (renderedConfig, error) {
+	env := &envAccumulator{owner: map[string]string{}}
+
+	config, err := decodeRaw(proxy.Spec.ExtraConfig)
+	if err != nil {
+		return renderedConfig{}, fmt.Errorf("extraConfig: %w", err)
+	}
+	if config == nil {
+		config = map[string]any{}
+	}
+
+	modelList, err := renderModels(models, env)
+	if err != nil {
+		return renderedConfig{}, err
+	}
+	config["model_list"] = modelList
+
+	if guards, err := renderGuardrails(guardrails, env); err != nil {
+		return renderedConfig{}, err
+	} else if guards != nil {
+		config["guardrails"] = guards
+	}
+
+	if servers, err := renderMCPServers(mcpServers, env); err != nil {
+		return renderedConfig{}, err
+	} else if servers != nil {
+		config["mcp_servers"] = servers
+	}
+
+	for key, raw := range topLevelBlocks(proxy) {
+		if err := mergeValue(config, key, raw); err != nil {
+			return renderedConfig{}, err
+		}
+	}
+	if err := applyCallbacks(config, proxy.Spec.Callbacks); err != nil {
+		return renderedConfig{}, err
+	}
+
+	out, err := yaml.Marshal(config)
+	if err != nil {
+		return renderedConfig{}, fmt.Errorf("marshal config: %w", err)
+	}
+	sum := sha256.Sum256(out)
+	return renderedConfig{yaml: string(out), hash: hex.EncodeToString(sum[:]), envVars: env.vars}, nil
+}
+
+func renderModels(models []litellmv1alpha1.LiteLLMModel, env *envAccumulator) ([]map[string]any, error) {
+	sorted := append([]litellmv1alpha1.LiteLLMModel(nil), models...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
 
-	modelList := make([]map[string]any, 0, len(sorted))
-	envVars := make([]corev1.EnvVar, 0, len(sorted))
-	envOwner := make(map[string]string, len(sorted))
-
+	list := make([]map[string]any, 0, len(sorted))
 	for i := range sorted {
 		m := &sorted[i]
 		params, err := decodeRaw(m.Spec.Params.Additional)
 		if err != nil {
-			return renderedConfig{}, fmt.Errorf("model %q additional params: %w", m.Name, err)
+			return nil, fmt.Errorf("model %q params: %w", m.Name, err)
 		}
 		if params == nil {
 			params = map[string]any{}
 		}
-
 		p := m.Spec.Params
 		params["model"] = p.Model
 		if p.APIVersion != "" {
@@ -68,94 +139,159 @@ func renderConfig(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.
 		if p.TPM != nil {
 			params["tpm"] = *p.TPM
 		}
-
-		switch {
-		case p.APIBaseRef != nil:
-			envName := m.APIBaseEnvVarName()
-			if err := claimEnv(envOwner, envName, m.Name); err != nil {
-				return renderedConfig{}, err
-			}
-			params["api_base"] = "os.environ/" + envName
-			envVars = append(envVars, secretEnv(envName, p.APIBaseRef))
-		case p.APIBase != "":
-			params["api_base"] = p.APIBase
+		if err := env.secretParam(params, "api_base", p.APIBase, p.APIBaseRef, m.APIBaseEnvVarName(), m.Name); err != nil {
+			return nil, err
+		}
+		if err := env.secretParam(params, "api_key", p.APIKey, p.APIKeyRef, m.APIKeyEnvVarName(), m.Name); err != nil {
+			return nil, err
 		}
 
-		switch {
-		case p.APIKeyRef != nil:
-			envName := m.APIKeyEnvVarName()
-			if err := claimEnv(envOwner, envName, m.Name); err != nil {
-				return renderedConfig{}, err
-			}
-			params["api_key"] = "os.environ/" + envName
-			envVars = append(envVars, secretEnv(envName, p.APIKeyRef))
-		case p.APIKey != "":
-			params["api_key"] = p.APIKey
-		}
-
-		entry := map[string]any{
-			"model_name":     m.Spec.ModelName,
-			"litellm_params": params,
-		}
+		entry := map[string]any{"model_name": m.Spec.ModelName, "litellm_params": params}
 		info, err := renderModelInfo(m.Spec.Info)
 		if err != nil {
-			return renderedConfig{}, fmt.Errorf("model %q info: %w", m.Name, err)
+			return nil, fmt.Errorf("model %q info: %w", m.Name, err)
 		}
 		if info != nil {
 			entry["model_info"] = info
 		}
-		modelList = append(modelList, entry)
+		list = append(list, entry)
 	}
-
-	config, err := decodeRaw(proxy.Spec.ExtraConfig)
-	if err != nil {
-		return renderedConfig{}, fmt.Errorf("extraConfig: %w", err)
-	}
-	if config == nil {
-		config = map[string]any{}
-	}
-	config["model_list"] = modelList
-	if err := mergeSettings(config, "general_settings", proxy.Spec.GeneralSettings); err != nil {
-		return renderedConfig{}, err
-	}
-	if err := mergeSettings(config, "router_settings", proxy.Spec.RouterSettings); err != nil {
-		return renderedConfig{}, err
-	}
-	if err := mergeSettings(config, "litellm_settings", proxy.Spec.LitellmSettings); err != nil {
-		return renderedConfig{}, err
-	}
-
-	out, err := yaml.Marshal(config)
-	if err != nil {
-		return renderedConfig{}, fmt.Errorf("marshal config: %w", err)
-	}
-	sum := sha256.Sum256(out)
-	return renderedConfig{
-		yaml:    string(out),
-		hash:    hex.EncodeToString(sum[:]),
-		envVars: envVars,
-	}, nil
+	return list, nil
 }
 
-func mergeSettings(config map[string]any, key string, raw *runtime.RawExtension) error {
-	settings, err := decodeRaw(raw)
+func renderGuardrails(guardrails []litellmv1alpha1.LiteLLMGuardrail, env *envAccumulator) ([]map[string]any, error) {
+	if len(guardrails) == 0 {
+		return nil, nil
+	}
+	sorted := append([]litellmv1alpha1.LiteLLMGuardrail(nil), guardrails...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
+
+	list := make([]map[string]any, 0, len(sorted))
+	for i := range sorted {
+		g := &sorted[i]
+		params, err := decodeRaw(g.Spec.Params)
+		if err != nil {
+			return nil, fmt.Errorf("guardrail %q params: %w", g.Name, err)
+		}
+		if params == nil {
+			params = map[string]any{}
+		}
+		params["guardrail"] = g.Spec.Guardrail
+		if g.Spec.Mode != "" {
+			params["mode"] = g.Spec.Mode
+		}
+		if g.Spec.DefaultOn != nil {
+			params["default_on"] = *g.Spec.DefaultOn
+		}
+		if err := env.secretParam(params, "api_base", g.Spec.APIBase, g.Spec.APIBaseRef, g.APIBaseEnvVarName(), g.Name); err != nil {
+			return nil, err
+		}
+		if err := env.secretParam(params, "api_key", g.Spec.APIKey, g.Spec.APIKeyRef, g.APIKeyEnvVarName(), g.Name); err != nil {
+			return nil, err
+		}
+
+		entry := map[string]any{"guardrail_name": g.Spec.GuardrailName, "litellm_params": params}
+		info, err := decodeRaw(g.Spec.Info)
+		if err != nil {
+			return nil, fmt.Errorf("guardrail %q info: %w", g.Name, err)
+		}
+		if info != nil {
+			entry["guardrail_info"] = info
+		}
+		list = append(list, entry)
+	}
+	return list, nil
+}
+
+func renderMCPServers(servers []litellmv1alpha1.LiteLLMMCPServer, env *envAccumulator) (map[string]any, error) {
+	if len(servers) == 0 {
+		return nil, nil
+	}
+	sorted := append([]litellmv1alpha1.LiteLLMMCPServer(nil), servers...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
+
+	out := map[string]any{}
+	for i := range sorted {
+		s := &sorted[i]
+		entry, err := decodeRaw(s.Spec.Params)
+		if err != nil {
+			return nil, fmt.Errorf("mcp server %q params: %w", s.Name, err)
+		}
+		if entry == nil {
+			entry = map[string]any{}
+		}
+		if s.Spec.URL != "" {
+			entry["url"] = s.Spec.URL
+		}
+		if s.Spec.Transport != "" {
+			entry["transport"] = s.Spec.Transport
+		}
+		if s.Spec.AuthType != "" {
+			entry["auth_type"] = s.Spec.AuthType
+		}
+		if err := env.secretParam(entry, "authentication_token", "", s.Spec.AuthTokenRef, s.AuthTokenEnvVarName(), s.Name); err != nil {
+			return nil, err
+		}
+		alias := s.ServerAlias()
+		if _, dup := out[alias]; dup {
+			return nil, fmt.Errorf("mcp server %q reuses alias %q", s.Name, alias)
+		}
+		out[alias] = entry
+	}
+	return out, nil
+}
+
+// applyCallbacks overlays the callback lists onto litellm_settings and sets the
+// top-level callback_settings block.
+func applyCallbacks(config map[string]any, cb *litellmv1alpha1.CallbackSpec) error {
+	if cb == nil {
+		return nil
+	}
+	if len(cb.Success) > 0 || len(cb.Failure) > 0 || len(cb.Callbacks) > 0 {
+		ls, _ := config["litellm_settings"].(map[string]any)
+		if ls == nil {
+			ls = map[string]any{}
+		}
+		if len(cb.Success) > 0 {
+			ls["success_callback"] = cb.Success
+		}
+		if len(cb.Failure) > 0 {
+			ls["failure_callback"] = cb.Failure
+		}
+		if len(cb.Callbacks) > 0 {
+			ls["callbacks"] = cb.Callbacks
+		}
+		config["litellm_settings"] = ls
+	}
+	return mergeValue(config, "callback_settings", cb.Settings)
+}
+
+// topLevelBlocks maps each named passthrough field to its config.yaml key.
+func topLevelBlocks(proxy *litellmv1alpha1.LiteLLMProxy) map[string]*runtime.RawExtension {
+	s := proxy.Spec
+	return map[string]*runtime.RawExtension{
+		"general_settings":      s.GeneralSettings,
+		"router_settings":       s.RouterSettings,
+		"litellm_settings":      s.LitellmSettings,
+		"environment_variables": s.EnvironmentVariables,
+		"credential_list":       s.CredentialList,
+		"default_vertex_config": s.DefaultVertexConfig,
+		"files_settings":        s.FilesSettings,
+		"assistant_settings":    s.AssistantSettings,
+		"finetune_settings":     s.FinetuneSettings,
+		"prompts":               s.Prompts,
+		"vector_store_registry": s.VectorStoreRegistry,
+	}
+}
+
+func mergeValue(config map[string]any, key string, raw *runtime.RawExtension) error {
+	v, err := decodeRawValue(raw)
 	if err != nil {
 		return fmt.Errorf("%s: %w", key, err)
 	}
-	if settings != nil {
-		config[key] = settings
+	if v != nil {
+		config[key] = v
 	}
-	return nil
-}
-
-// claimEnv records that model owns the env var name, erroring if another model
-// already claimed it. This backstops the admission webhook: two models whose
-// names sanitize to the same env var would otherwise silently clobber each other.
-func claimEnv(owner map[string]string, name, model string) error {
-	if prev, ok := owner[name]; ok {
-		return fmt.Errorf("models %q and %q derive the same env var %q", prev, model, name)
-	}
-	owner[name] = model
 	return nil
 }
 
@@ -212,12 +348,27 @@ func renderModelInfo(info *litellmv1alpha1.ModelInfo) (map[string]any, error) {
 }
 
 func decodeRaw(raw *runtime.RawExtension) (map[string]any, error) {
+	v, err := decodeRawValue(raw)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, nil
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected an object, got %T", v)
+	}
+	return m, nil
+}
+
+func decodeRawValue(raw *runtime.RawExtension) (any, error) {
 	if raw == nil || len(raw.Raw) == 0 {
 		return nil, nil
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw.Raw))
 	dec.UseNumber()
-	out := map[string]any{}
+	var out any
 	if err := dec.Decode(&out); err != nil {
 		return nil, err
 	}

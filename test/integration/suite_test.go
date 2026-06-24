@@ -93,15 +93,16 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("LiteLLMProxy reconciliation", func() {
 	const (
-		ns        = "default"
-		proxyName = "main"
+		ns         = "default"
+		proxyName  = "main"
+		proxyLabel = "proxy"
 	)
 
 	It("renders matching models into a ConfigMap and rolls the Deployment", func() {
 		proxy := &litellmv1alpha1.LiteLLMProxy{
 			ObjectMeta: metav1.ObjectMeta{Name: proxyName, Namespace: ns},
 			Spec: litellmv1alpha1.LiteLLMProxySpec{
-				ModelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"proxy": "main"}},
+				ModelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{proxyLabel: proxyName}},
 				Service:       litellmv1alpha1.ProxyServiceSpec{Port: 4000},
 				Route: &litellmv1alpha1.ProxyRoute{
 					Hostnames:  []string{"litellm.example.com"},
@@ -112,7 +113,7 @@ var _ = Describe("LiteLLMProxy reconciliation", func() {
 		Expect(k8sClient.Create(ctx, proxy)).To(Succeed())
 
 		model := &litellmv1alpha1.LiteLLMModel{
-			ObjectMeta: metav1.ObjectMeta{Name: "glm", Namespace: ns, Labels: map[string]string{"proxy": "main"}},
+			ObjectMeta: metav1.ObjectMeta{Name: "glm", Namespace: ns, Labels: map[string]string{proxyLabel: proxyName}},
 			Spec: litellmv1alpha1.LiteLLMModelSpec{
 				ModelName: "glm-5.2",
 				Params: litellmv1alpha1.LiteLLMParams{
@@ -123,12 +124,32 @@ var _ = Describe("LiteLLMProxy reconciliation", func() {
 		}
 		Expect(k8sClient.Create(ctx, model)).To(Succeed())
 
+		guardrail := &litellmv1alpha1.LiteLLMGuardrail{
+			ObjectMeta: metav1.ObjectMeta{Name: "aporia", Namespace: ns, Labels: map[string]string{proxyLabel: proxyName}},
+			Spec: litellmv1alpha1.LiteLLMGuardrailSpec{
+				GuardrailName: "aporia-pre", Guardrail: "aporia", Mode: "pre_call",
+				APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "gr", Key: "APORIA_KEY"},
+			},
+		}
+		Expect(k8sClient.Create(ctx, guardrail)).To(Succeed())
+
+		mcp := &litellmv1alpha1.LiteLLMMCPServer{
+			ObjectMeta: metav1.ObjectMeta{Name: "gh", Namespace: ns, Labels: map[string]string{proxyLabel: proxyName}},
+			Spec: litellmv1alpha1.LiteLLMMCPServerSpec{
+				Alias: "github", URL: "https://api.githubcopilot.com/mcp", Transport: "http",
+			},
+		}
+		Expect(k8sClient.Create(ctx, mcp)).To(Succeed())
+
 		var cm corev1.ConfigMap
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: proxyName + "-config", Namespace: ns}, &cm)).To(Succeed())
 			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("glm-5.2"))
 			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("os.environ/LITELLM_MODELKEY_GLM"))
 			g.Expect(cm.Data["config.yaml"]).NotTo(ContainSubstring("apikey"))
+			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("aporia-pre"))
+			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("mcp_servers"))
+			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("github"))
 		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
 
 		var deploy appsv1.Deployment

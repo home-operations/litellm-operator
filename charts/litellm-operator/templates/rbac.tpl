@@ -15,6 +15,8 @@ rules:
   resources:
   - litellmproxies
   - litellmmodels
+  - litellmguardrails
+  - litellmmcpservers
   verbs:
   - get
   - list

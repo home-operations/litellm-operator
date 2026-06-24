@@ -32,6 +32,31 @@ type ProxyRoute struct {
 	ParentRefs []RouteParentRef `json:"parentRefs"`
 }
 
+// CallbackSpec configures litellm callbacks. Success/Failure/Callbacks set the
+// matching litellm_settings lists; Settings maps to the top-level callback_settings.
+type CallbackSpec struct {
+	// Success callbacks (litellm_settings.success_callback), e.g. ["prometheus","langfuse"].
+	// +optional
+	// +listType=atomic
+	Success []string `json:"success,omitempty"`
+
+	// Failure callbacks (litellm_settings.failure_callback).
+	// +optional
+	// +listType=atomic
+	Failure []string `json:"failure,omitempty"`
+
+	// Callbacks run on both success and failure (litellm_settings.callbacks).
+	// +optional
+	// +listType=atomic
+	Callbacks []string `json:"callbacks,omitempty"`
+
+	// Settings maps to the top-level callback_settings block (per-callback config).
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Settings *runtime.RawExtension `json:"settings,omitempty"`
+}
+
 // ProxyServiceSpec configures the Service fronting the proxy.
 type ProxyServiceSpec struct {
 	// Type of Service to create.
@@ -89,10 +114,61 @@ type LiteLLMProxySpec struct {
 	// +optional
 	LitellmSettings *runtime.RawExtension `json:"litellmSettings,omitempty"`
 
-	// ExtraConfig is merged into the top level of the rendered config.yaml,
-	// covering any config key without a dedicated field (e.g. guardrails,
-	// mcp_servers, callback_settings, environment_variables). The model_list and
-	// the typed settings blocks above take precedence over keys set here.
+	// Callbacks configures litellm logging/observability callbacks.
+	// +optional
+	Callbacks *CallbackSpec `json:"callbacks,omitempty"`
+
+	// EnvironmentVariables maps to the top-level environment_variables block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	EnvironmentVariables *runtime.RawExtension `json:"environmentVariables,omitempty"`
+
+	// CredentialList maps to the top-level credential_list block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	CredentialList *runtime.RawExtension `json:"credentialList,omitempty"`
+
+	// DefaultVertexConfig maps to the top-level default_vertex_config block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	DefaultVertexConfig *runtime.RawExtension `json:"defaultVertexConfig,omitempty"`
+
+	// FilesSettings maps to the top-level files_settings block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	FilesSettings *runtime.RawExtension `json:"filesSettings,omitempty"`
+
+	// AssistantSettings maps to the top-level assistant_settings block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	AssistantSettings *runtime.RawExtension `json:"assistantSettings,omitempty"`
+
+	// FinetuneSettings maps to the top-level finetune_settings block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	FinetuneSettings *runtime.RawExtension `json:"finetuneSettings,omitempty"`
+
+	// Prompts maps to the top-level prompts block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Prompts *runtime.RawExtension `json:"prompts,omitempty"`
+
+	// VectorStoreRegistry maps to the top-level vector_store_registry block.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	VectorStoreRegistry *runtime.RawExtension `json:"vectorStoreRegistry,omitempty"`
+
+	// ExtraConfig is merged into the top level of the rendered config.yaml as a
+	// final catch-all for any key without a dedicated field. The generated
+	// model_list, guardrails, mcp_servers and the typed blocks take precedence.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
 	// +optional

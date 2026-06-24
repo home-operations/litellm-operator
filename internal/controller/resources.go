@@ -48,7 +48,7 @@ func buildService(proxy *litellmv1alpha1.LiteLLMProxy) *corev1.Service {
 			Type:     proxy.Spec.Service.Type,
 			Selector: selectorLabels(proxy),
 			Ports: []corev1.ServicePort{{
-				Name:       "http",
+				Name:       httpPortName,
 				Port:       proxy.Spec.Service.Port,
 				TargetPort: intstr.FromInt32(proxyPort),
 				Protocol:   corev1.ProtocolTCP,
@@ -156,7 +156,7 @@ func buildDeployment(proxy *litellmv1alpha1.LiteLLMProxy, configHash string, mod
 						Env:     env,
 						EnvFrom: proxy.Spec.EnvFrom,
 						Ports: []corev1.ContainerPort{{
-							Name:          "http",
+							Name:          httpPortName,
 							ContainerPort: proxyPort,
 							Protocol:      corev1.ProtocolTCP,
 						}},

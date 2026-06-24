@@ -26,6 +26,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&LiteLLMProxyList{},
 		&LiteLLMModel{},
 		&LiteLLMModelList{},
+		&LiteLLMGuardrail{},
+		&LiteLLMGuardrailList{},
+		&LiteLLMMCPServer{},
+		&LiteLLMMCPServerList{},
 	)
 	metav1.AddToGroupVersion(scheme, GroupVersion)
 	return nil

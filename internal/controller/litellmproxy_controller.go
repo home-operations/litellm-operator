@@ -33,7 +33,7 @@ type LiteLLMProxyReconciler struct {
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmproxies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmproxies/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmproxies/finalizers,verbs=update
-// +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmmodels,verbs=get;list;watch
+// +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmmodels;litellmguardrails;litellmmcpservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch;create;update;patch;delete
@@ -54,8 +54,16 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("list models: %w", err)
 	}
+	guardrails, err := r.matchingGuardrails(ctx, &proxy)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("list guardrails: %w", err)
+	}
+	mcpServers, err := r.matchingMCPServers(ctx, &proxy)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("list mcp servers: %w", err)
+	}
 
-	rendered, err := renderConfig(&proxy, models)
+	rendered, err := renderConfig(&proxy, models, guardrails, mcpServers)
 	if err != nil {
 		return ctrl.Result{}, r.markFailed(ctx, &proxy, "RenderFailed", err.Error())
 	}
@@ -85,7 +93,7 @@ func (r *LiteLLMProxyReconciler) matchingModels(ctx context.Context, proxy *lite
 	}
 	adopted := make([]litellmv1alpha1.LiteLLMModel, 0, len(list.Items))
 	for i := range list.Items {
-		ok, err := proxyAdoptsModel(proxy, &list.Items[i])
+		ok, err := proxyAdopts(proxy, list.Items[i].Spec.ProxyRef, list.Items[i].Labels)
 		if err != nil {
 			return nil, err
 		}
@@ -96,12 +104,49 @@ func (r *LiteLLMProxyReconciler) matchingModels(ctx context.Context, proxy *lite
 	return adopted, nil
 }
 
-// proxyAdoptsModel reports whether the proxy serves the model. An explicit
-// spec.proxyRef on the model wins; otherwise the proxy's modelSelector decides,
-// and a proxy with no selector adopts every model in its namespace.
-func proxyAdoptsModel(proxy *litellmv1alpha1.LiteLLMProxy, m *litellmv1alpha1.LiteLLMModel) (bool, error) {
-	if m.Spec.ProxyRef != "" {
-		return m.Spec.ProxyRef == proxy.Name, nil
+func (r *LiteLLMProxyReconciler) matchingGuardrails(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) ([]litellmv1alpha1.LiteLLMGuardrail, error) {
+	var list litellmv1alpha1.LiteLLMGuardrailList
+	if err := r.List(ctx, &list, client.InNamespace(proxy.Namespace)); err != nil {
+		return nil, err
+	}
+	adopted := make([]litellmv1alpha1.LiteLLMGuardrail, 0, len(list.Items))
+	for i := range list.Items {
+		ok, err := proxyAdopts(proxy, list.Items[i].Spec.ProxyRef, list.Items[i].Labels)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			adopted = append(adopted, list.Items[i])
+		}
+	}
+	return adopted, nil
+}
+
+func (r *LiteLLMProxyReconciler) matchingMCPServers(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) ([]litellmv1alpha1.LiteLLMMCPServer, error) {
+	var list litellmv1alpha1.LiteLLMMCPServerList
+	if err := r.List(ctx, &list, client.InNamespace(proxy.Namespace)); err != nil {
+		return nil, err
+	}
+	adopted := make([]litellmv1alpha1.LiteLLMMCPServer, 0, len(list.Items))
+	for i := range list.Items {
+		ok, err := proxyAdopts(proxy, list.Items[i].Spec.ProxyRef, list.Items[i].Labels)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			adopted = append(adopted, list.Items[i])
+		}
+	}
+	return adopted, nil
+}
+
+// proxyAdopts reports whether the proxy serves a resource with the given
+// proxyRef and labels. An explicit proxyRef wins; otherwise the proxy's
+// modelSelector decides, and a proxy with no selector adopts everything in its
+// namespace.
+func proxyAdopts(proxy *litellmv1alpha1.LiteLLMProxy, proxyRef string, objLabels map[string]string) (bool, error) {
+	if proxyRef != "" {
+		return proxyRef == proxy.Name, nil
 	}
 	if proxy.Spec.ModelSelector == nil {
 		return true, nil
@@ -110,7 +155,7 @@ func proxyAdoptsModel(proxy *litellmv1alpha1.LiteLLMProxy, m *litellmv1alpha1.Li
 	if err != nil {
 		return false, err
 	}
-	return selector.Matches(labels.Set(m.Labels)), nil
+	return selector.Matches(labels.Set(objLabels)), nil
 }
 
 func (r *LiteLLMProxyReconciler) applyConfigMap(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, config string) error {
@@ -204,33 +249,59 @@ func (r *LiteLLMProxyReconciler) markFailed(ctx context.Context, proxy *litellmv
 	return fmt.Errorf("%s: %s", reason, msg)
 }
 
-// proxiesForModel maps a changed LiteLLMModel to the proxies whose selector matches it.
-func (r *LiteLLMProxyReconciler) proxiesForModel(ctx context.Context, obj client.Object) []reconcile.Request {
-	var proxies litellmv1alpha1.LiteLLMProxyList
-	if err := r.List(ctx, &proxies, client.InNamespace(obj.GetNamespace())); err != nil {
-		return nil
-	}
-	model, ok := obj.(*litellmv1alpha1.LiteLLMModel)
-	if !ok {
-		return nil
-	}
-	var requests []reconcile.Request
-	for i := range proxies.Items {
-		p := &proxies.Items[i]
-		if adopts, err := proxyAdoptsModel(p, model); err == nil && adopts {
-			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name, Namespace: p.Namespace}})
+// proxiesForObject maps a changed adopted resource (model, guardrail, MCP server)
+// to the proxies that serve it. proxyRefOf extracts the object's spec.proxyRef.
+func (r *LiteLLMProxyReconciler) proxiesForObject(proxyRefOf func(client.Object) (string, bool)) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		ref, ok := proxyRefOf(obj)
+		if !ok {
+			return nil
 		}
+		var proxies litellmv1alpha1.LiteLLMProxyList
+		if err := r.List(ctx, &proxies, client.InNamespace(obj.GetNamespace())); err != nil {
+			return nil
+		}
+		var requests []reconcile.Request
+		for i := range proxies.Items {
+			p := &proxies.Items[i]
+			if adopts, err := proxyAdopts(p, ref, obj.GetLabels()); err == nil && adopts {
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name, Namespace: p.Namespace}})
+			}
+		}
+		return requests
 	}
-	return requests
 }
 
 // SetupWithManager wires the controller and its watches.
 func (r *LiteLLMProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	modelRef := func(o client.Object) (string, bool) {
+		m, ok := o.(*litellmv1alpha1.LiteLLMModel)
+		if !ok {
+			return "", false
+		}
+		return m.Spec.ProxyRef, true
+	}
+	guardrailRef := func(o client.Object) (string, bool) {
+		g, ok := o.(*litellmv1alpha1.LiteLLMGuardrail)
+		if !ok {
+			return "", false
+		}
+		return g.Spec.ProxyRef, true
+	}
+	mcpRef := func(o client.Object) (string, bool) {
+		s, ok := o.(*litellmv1alpha1.LiteLLMMCPServer)
+		if !ok {
+			return "", false
+		}
+		return s.Spec.ProxyRef, true
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&litellmv1alpha1.LiteLLMProxy{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ConfigMap{}).
-		Watches(&litellmv1alpha1.LiteLLMModel{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForModel)).
+		Watches(&litellmv1alpha1.LiteLLMModel{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForObject(modelRef))).
+		Watches(&litellmv1alpha1.LiteLLMGuardrail{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForObject(guardrailRef))).
+		Watches(&litellmv1alpha1.LiteLLMMCPServer{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForObject(mcpRef))).
 		Complete(r)
 }

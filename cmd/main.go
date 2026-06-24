@@ -27,6 +27,7 @@ import (
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 	"github.com/home-operations/litellm-operator/internal/controller"
+	guardrailwebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmguardrail"
 	modelwebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmmodel"
 	proxywebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmproxy"
 	// +kubebuilder:scaffold:imports
@@ -204,6 +205,10 @@ func setupCertRotationAndWebhooks(mgr ctrl.Manager, cfg certRotationConfig) {
 		}
 		if err := (&proxywebhook.Validator{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "LiteLLMProxy")
+			os.Exit(1)
+		}
+		if err := (&guardrailwebhook.Validator{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "LiteLLMGuardrail")
 			os.Exit(1)
 		}
 		setupLog.Info("webhooks registered")

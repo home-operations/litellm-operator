@@ -7,57 +7,32 @@ metadata:
 spec:
   image: ghcr.io/berriai/litellm:main-stable
   replicas: 1
-  modelSelector:
-    matchLabels:
-      litellm.home-operations.com/proxy: main
+  # No modelSelector: this proxy adopts every model/guardrail/MCP server in its namespace.
   generalSettings:
     health_check_endpoint: /v1/health
   routerSettings:
     routing_strategy: simple-shuffle
-    redis_host: os.environ/REDIS_HOST
-    redis_port: os.environ/REDIS_PORT
-  litellmSettings:
-    success_callback: ["prometheus"]
-    cache: true
-    cache_params:
-      type: redis
-      host: os.environ/REDIS_HOST
-      port: os.environ/REDIS_PORT
-    drop_params: true
+  callbacks:
+    success:
+      - prometheus
+    settings:
+      otel:
+        exporter: otlp
   envFrom:
     - secretRef:
         name: litellm-secrets
-  service:
-    type: ClusterIP
-    port: 4000
----
-apiVersion: litellm.home-operations.com/v1alpha1
-kind: LiteLLMModel
-metadata:
-  name: gemma
-  namespace: ai
-  labels:
-    litellm.home-operations.com/proxy: main
-spec:
-  modelName: gemma
-  params:
-    model: openai/gemma
-    apiBase: http://llama-cpp.ai:8080/v1
-    apiKeyRef:
-      name: litellm-secrets
-      key: LLAMA_API_KEY
-  info:
-    max_tokens: 32768
-    max_input_tokens: 32768
-    max_output_tokens: 8192
+  route:
+    hostnames:
+      - litellm.example.com
+    parentRefs:
+      - name: envoy-external
+        namespace: network
 ---
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
   name: glm-5-2
   namespace: ai
-  labels:
-    litellm.home-operations.com/proxy: main
 spec:
   modelName: glm-5.2
   params:
@@ -68,7 +43,34 @@ spec:
       key: ZAI_API_KEY
     dropParams: true
   info:
-    max_input_tokens: 1000000
-    max_output_tokens: 131072
-    supports_function_calling: true
-    supports_prompt_caching: true
+    maxInputTokens: 1000000
+    maxOutputTokens: 131072
+    supportsFunctionCalling: true
+    supportsPromptCaching: true
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMGuardrail
+metadata:
+  name: aporia-pre
+  namespace: ai
+spec:
+  guardrailName: aporia-pre-guard
+  guardrail: aporia
+  mode: pre_call
+  defaultOn: true
+  apiKeyRef:
+    name: litellm-secrets
+    key: APORIA_API_KEY
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMMCPServer
+metadata:
+  name: github
+  namespace: ai
+spec:
+  alias: github
+  url: https://api.githubcopilot.com/mcp
+  transport: http
+  authTokenRef:
+    name: litellm-secrets
+    key: GITHUB_MCP_PAT

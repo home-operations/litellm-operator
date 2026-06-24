@@ -44,6 +44,8 @@ rules:
 - apiGroups:
   - litellm.home-operations.com
   resources:
+  - litellmguardrails
+  - litellmmcpservers
   - litellmmodels
   verbs:
   - get
