@@ -1,0 +1,65 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
+  - litellmmodels
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
+  - litellmproxies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
+  - litellmproxies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
+  - litellmproxies/status
+  verbs:
+  - get
+  - patch
+  - update

@@ -1,0 +1,133 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+  release:
+    types:
+      - published
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+jobs:
+  versions:
+    name: Versions
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      go-version: ${{ steps.versions.outputs.go-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          cache: false
+          experimental: true
+          install: false
+
+      - name: Resolve versions
+        id: versions
+        run: echo "go-version=$(mise config get tools.go)" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Release
+    needs: versions
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: docker/github-builder/.github/workflows/build.yml@5f637c833aa76bc99372a1dc9a6f8bcd8056fb85 # v1.12.0
+    with:
+      build-args: |
+        VERSION=${{ github.ref_name }}
+        REVISION=${{ github.sha }}
+        GO_VERSION=${{ needs.versions.outputs.go-version }}
+      cache: true
+      meta-images: ghcr.io/${{ github.repository }}
+      meta-tags: |
+        type=semver,pattern={{version}}
+        type=raw,value=rolling,enable=${{ github.event_name == 'release' }}
+        type=ref,event=branch
+      output: image
+      platforms: linux/amd64,linux/arm64
+      push: true
+      sbom: true
+      set-meta-annotations: true
+      set-meta-labels: true
+      sign: true
+    secrets:
+      registry-auths: |
+        - registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  helm:
+    name: Helm
+    needs: release
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write # keyless Cosign signing of the published chart
+      packages: write
+    env:
+      VERSION: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          cache: false
+          experimental: true
+          install_args: --locked
+
+      - name: Generate manifests and CRDs
+        run: mise run helm-crds
+
+      # Pin the chart's image to the exact digest the build just published, so the
+      # released chart references an immutable image (not a floating tag). The digest
+      # is the manifest-list (index) digest from docker/github-builder; fail closed
+      # rather than ship a chart that silently falls back to the tag.
+      - name: Pin the released image digest into the chart
+        env:
+          DIGEST: ${{ needs.release.outputs.digest }}
+        run: |
+          [ -n "${DIGEST}" ] || { echo "build produced no digest"; exit 1; }
+          yq -i '.image.digest = strenv(DIGEST)' charts/litellm-operator/values.yaml
+
+      - name: Package Helm chart
+        run: |
+          helm package charts/litellm-operator \
+            --version "${VERSION}" \
+            --app-version "${VERSION}"
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Helm chart to GHCR
+        run: |-
+          helm push "litellm-operator-${VERSION}.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+
+      - name: Sign the published chart with Cosign
+        run: |-
+          cosign sign --yes "ghcr.io/${{ github.repository_owner }}/charts/litellm-operator:${VERSION}"

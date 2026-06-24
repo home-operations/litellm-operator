@@ -1,0 +1,22 @@
+---
+apiVersion: v2
+name: litellm-operator
+description: A Kubernetes operator that renders LiteLLM proxy config from CRDs
+type: application
+kubeVersion: ">=1.25.0-0"
+version: 0.0.0
+appVersion: "0.0.0"
+home: https://github.com/home-operations/litellm-operator
+sources:
+  - https://github.com/home-operations/litellm-operator
+maintainers:
+  - name: home-operations
+    email: contact@home-operations.com
+keywords:
+  - litellm
+  - llm
+  - proxy
+  - kubernetes
+  - operator
+annotations:
+  category: AI

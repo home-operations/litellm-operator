@@ -1,0 +1,4 @@
+---
+resources:
+  - bases/litellm.home-operations.com_litellmproxies.yaml
+  - bases/litellm.home-operations.com_litellmmodels.yaml

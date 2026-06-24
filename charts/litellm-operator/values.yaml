@@ -1,0 +1,109 @@
+---
+# Default values for litellm-operator.
+
+# -- Number of operator replicas (one is active at a time when leader election is on).
+replicaCount: 1
+
+image:
+  # -- Image repository.
+  repository: ghcr.io/home-operations/litellm-operator
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag; defaults to the chart appVersion.
+  tag: ""
+  # -- Pin the image by digest (sha256:…); when set, overrides the tag.
+  digest: ""
+
+# -- Image pull secrets for private registries.
+imagePullSecrets: []
+
+# -- Override the chart name used in resource names.
+nameOverride: ""
+# -- Override the full release name.
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount.
+  create: true
+  # -- Automount the API token.
+  automount: true
+  # -- Annotations for the ServiceAccount.
+  annotations: {}
+  # -- Name of the ServiceAccount; generated when empty.
+  name: ""
+
+rbac:
+  # -- Create the ClusterRole/ClusterRoleBinding and leader-election Role.
+  create: true
+  # -- Annotations for the RBAC resources.
+  annotations: {}
+
+controller:
+  # -- Log level (debug, info).
+  logLevel: info
+  leaderElection:
+    # -- Enable leader election so only one replica reconciles at a time.
+    enabled: true
+  metrics:
+    # -- Expose the controller-runtime metrics endpoint.
+    enabled: false
+    # -- Serve metrics over HTTPS with authn/authz.
+    secure: true
+    # -- Metrics port.
+    port: 8443
+  health:
+    # -- Health/readiness probe port.
+    port: 8081
+
+# -- Extra environment variables for the operator container.
+env: []
+
+# -- Pod annotations.
+podAnnotations: {}
+# -- Pod labels.
+podLabels: {}
+
+# -- Pod-level security context.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# -- Operator container resource requests/limits.
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: health
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# -- Priority class for the operator pod.
+priorityClassName: ""
+# -- Node selector.
+nodeSelector: {}
+# -- Tolerations.
+tolerations: []
+# -- Affinity.
+affinity: {}

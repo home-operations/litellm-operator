@@ -1,0 +1,74 @@
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+  name: main
+  namespace: ai
+spec:
+  image: ghcr.io/berriai/litellm:main-stable
+  replicas: 1
+  modelSelector:
+    matchLabels:
+      litellm.home-operations.com/proxy: main
+  generalSettings:
+    health_check_endpoint: /v1/health
+  routerSettings:
+    routing_strategy: simple-shuffle
+    redis_host: os.environ/REDIS_HOST
+    redis_port: os.environ/REDIS_PORT
+  litellmSettings:
+    success_callback: ["prometheus"]
+    cache: true
+    cache_params:
+      type: redis
+      host: os.environ/REDIS_HOST
+      port: os.environ/REDIS_PORT
+    drop_params: true
+  envFrom:
+    - secretRef:
+        name: litellm-secrets
+  service:
+    type: ClusterIP
+    port: 4000
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: gemma
+  namespace: ai
+  labels:
+    litellm.home-operations.com/proxy: main
+spec:
+  modelName: gemma
+  params:
+    model: openai/gemma
+    apiBase: http://llama-cpp.ai:8080/v1
+    apiKeyRef:
+      name: litellm-secrets
+      key: LLAMA_API_KEY
+  info:
+    max_tokens: 32768
+    max_input_tokens: 32768
+    max_output_tokens: 8192
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMModel
+metadata:
+  name: glm-5-2
+  namespace: ai
+  labels:
+    litellm.home-operations.com/proxy: main
+spec:
+  modelName: glm-5.2
+  params:
+    model: openai/glm-5.2
+    apiBase: https://api.z.ai/api/coding/paas/v4
+    apiKeyRef:
+      name: litellm-secrets
+      key: ZAI_API_KEY
+    dropParams: true
+  info:
+    max_input_tokens: 1000000
+    max_output_tokens: 131072
+    supports_function_calling: true
+    supports_prompt_caching: true

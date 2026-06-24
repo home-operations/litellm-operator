@@ -1,0 +1,21 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+## Installing
+
+```sh
+helm install litellm-operator oci://ghcr.io/home-operations/charts/litellm-operator \
+  --namespace litellm-system --create-namespace
+```
+
+The chart installs the CRDs (`LiteLLMProxy`, `LiteLLMModel`) and the operator
+Deployment. Declare a `LiteLLMProxy` plus one `LiteLLMModel` per model; the
+operator renders `config.yaml` into a ConfigMap, wires secret-backed API keys as
+`os.environ` env vars, and rolls the proxy whenever the rendered config changes.
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}

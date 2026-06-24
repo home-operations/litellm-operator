@@ -1,0 +1,397 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "affinity": {
+      "description": "Affinity.",
+      "required": [],
+      "title": "affinity",
+      "type": "object"
+    },
+    "controller": {
+      "properties": {
+        "health": {
+          "properties": {
+            "port": {
+              "default": 8081,
+              "description": "Health/readiness probe port.",
+              "title": "port",
+              "type": "integer"
+            }
+          },
+          "required": [],
+          "title": "health",
+          "type": "object"
+        },
+        "leaderElection": {
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable leader election so only one replica reconciles at a time.",
+              "title": "enabled",
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "title": "leaderElection",
+          "type": "object"
+        },
+        "logLevel": {
+          "default": "info",
+          "description": "Log level (debug, info).",
+          "title": "logLevel",
+          "type": "string"
+        },
+        "metrics": {
+          "properties": {
+            "enabled": {
+              "default": false,
+              "description": "Expose the controller-runtime metrics endpoint.",
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "port": {
+              "default": 8443,
+              "description": "Metrics port.",
+              "title": "port",
+              "type": "integer"
+            },
+            "secure": {
+              "default": true,
+              "description": "Serve metrics over HTTPS with authn/authz.",
+              "title": "secure",
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "title": "metrics",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "controller",
+      "type": "object"
+    },
+    "env": {
+      "description": "Extra environment variables for the operator container.",
+      "items": {
+        "required": []
+      },
+      "title": "env",
+      "type": "array"
+    },
+    "fullnameOverride": {
+      "default": "",
+      "description": "Override the full release name.",
+      "title": "fullnameOverride",
+      "type": "string"
+    },
+    "global": {
+      "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+      "required": [],
+      "title": "global",
+      "type": "object"
+    },
+    "image": {
+      "properties": {
+        "digest": {
+          "default": "",
+          "description": "Pin the image by digest (sha256:…); when set, overrides the tag.",
+          "title": "digest",
+          "type": "string"
+        },
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "description": "Image pull policy.",
+          "title": "pullPolicy",
+          "type": "string"
+        },
+        "repository": {
+          "default": "ghcr.io/home-operations/litellm-operator",
+          "description": "Image repository.",
+          "title": "repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "description": "Overrides the image tag; defaults to the chart appVersion.",
+          "title": "tag",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "image",
+      "type": "object"
+    },
+    "imagePullSecrets": {
+      "description": "Image pull secrets for private registries.",
+      "items": {
+        "required": []
+      },
+      "title": "imagePullSecrets",
+      "type": "array"
+    },
+    "livenessProbe": {
+      "properties": {
+        "httpGet": {
+          "properties": {
+            "path": {
+              "default": "/healthz",
+              "title": "path",
+              "type": "string"
+            },
+            "port": {
+              "default": "health",
+              "title": "port",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "httpGet",
+          "type": "object"
+        },
+        "initialDelaySeconds": {
+          "default": 15,
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 20,
+          "title": "periodSeconds",
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "livenessProbe",
+      "type": "object"
+    },
+    "nameOverride": {
+      "default": "",
+      "description": "Override the chart name used in resource names.",
+      "title": "nameOverride",
+      "type": "string"
+    },
+    "nodeSelector": {
+      "description": "Node selector.",
+      "required": [],
+      "title": "nodeSelector",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "description": "Pod annotations.",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podLabels": {
+      "description": "Pod labels.",
+      "required": [],
+      "title": "podLabels",
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "description": "Pod-level security context.",
+      "properties": {
+        "runAsNonRoot": {
+          "default": true,
+          "title": "runAsNonRoot",
+          "type": "boolean"
+        },
+        "seccompProfile": {
+          "properties": {
+            "type": {
+              "default": "RuntimeDefault",
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "seccompProfile",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "podSecurityContext",
+      "type": "object"
+    },
+    "priorityClassName": {
+      "default": "",
+      "description": "Priority class for the operator pod.",
+      "title": "priorityClassName",
+      "type": "string"
+    },
+    "rbac": {
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the RBAC resources.",
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "create": {
+          "default": true,
+          "description": "Create the ClusterRole/ClusterRoleBinding and leader-election Role.",
+          "title": "create",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "title": "rbac",
+      "type": "object"
+    },
+    "readinessProbe": {
+      "properties": {
+        "httpGet": {
+          "properties": {
+            "path": {
+              "default": "/readyz",
+              "title": "path",
+              "type": "string"
+            },
+            "port": {
+              "default": "health",
+              "title": "port",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "httpGet",
+          "type": "object"
+        },
+        "initialDelaySeconds": {
+          "default": 5,
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 10,
+          "title": "periodSeconds",
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "readinessProbe",
+      "type": "object"
+    },
+    "replicaCount": {
+      "default": 1,
+      "description": "Number of operator replicas (one is active at a time when leader election is on).",
+      "title": "replicaCount",
+      "type": "integer"
+    },
+    "resources": {
+      "description": "Operator container resource requests/limits.",
+      "properties": {
+        "limits": {
+          "properties": {
+            "memory": {
+              "default": "128Mi",
+              "title": "memory",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "limits",
+          "type": "object"
+        },
+        "requests": {
+          "properties": {
+            "cpu": {
+              "default": "10m",
+              "title": "cpu",
+              "type": "string"
+            },
+            "memory": {
+              "default": "64Mi",
+              "title": "memory",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "requests",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "resources",
+      "type": "object"
+    },
+    "securityContext": {
+      "description": "Container-level security context.",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "default": false,
+          "title": "allowPrivilegeEscalation",
+          "type": "boolean"
+        },
+        "capabilities": {
+          "properties": {
+            "drop": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  }
+                ],
+                "required": []
+              },
+              "title": "drop",
+              "type": "array"
+            }
+          },
+          "required": [],
+          "title": "capabilities",
+          "type": "object"
+        },
+        "readOnlyRootFilesystem": {
+          "default": true,
+          "title": "readOnlyRootFilesystem",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "title": "securityContext",
+      "type": "object"
+    },
+    "serviceAccount": {
+      "properties": {
+        "annotations": {
+          "description": "Annotations for the ServiceAccount.",
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "automount": {
+          "default": true,
+          "description": "Automount the API token.",
+          "title": "automount",
+          "type": "boolean"
+        },
+        "create": {
+          "default": true,
+          "description": "Create a ServiceAccount.",
+          "title": "create",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "",
+          "description": "Name of the ServiceAccount; generated when empty.",
+          "title": "name",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "serviceAccount",
+      "type": "object"
+    },
+    "tolerations": {
+      "description": "Tolerations.",
+      "items": {
+        "required": []
+      },
+      "title": "tolerations",
+      "type": "array"
+    }
+  },
+  "required": [],
+  "type": "object"
+}
