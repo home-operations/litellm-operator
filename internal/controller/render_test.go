@@ -13,7 +13,10 @@ import (
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 )
 
-const modelOpenAIM = "openai/m"
+const (
+	modelOpenAIM = "openai/m"
+	secretKeyKey = "apikey"
+)
 
 func raw(s string) *runtime.RawExtension { return &runtime.RawExtension{Raw: []byte(s)} }
 
@@ -36,7 +39,7 @@ func TestRenderConfig_SecretKeyBecomesEnvRefNotInlineSecret(t *testing.T) {
 	m := model("glm", "glm-5.2", litellmv1alpha1.LiteLLMParams{
 		Model:     "openai/glm-5.2",
 		APIBase:   "https://api.z.ai/v4",
-		APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "zai", Key: "apikey"},
+		APIKeyRef: &litellmv1alpha1.SecretKeyRef{Name: "zai", Key: secretKeyKey},
 	})
 	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
@@ -194,6 +197,19 @@ func TestRenderConfig_OmitsUnsetGlobalSettingsAndOptionalParams(t *testing.T) {
 	}
 	_, hasInfo := cfg["model_list"].([]any)[0].(map[string]any)["model_info"]
 	assert.False(t, hasInfo)
+}
+
+func TestRenderConfig_RejectsCollidingAPIKeyEnvVars(t *testing.T) {
+	ref := func(secret string) *litellmv1alpha1.SecretKeyRef {
+		return &litellmv1alpha1.SecretKeyRef{Name: secret, Key: secretKeyKey}
+	}
+	// "minimax-m3" and "minimax.m3" both sanitize to LITELLM_MODELKEY_MINIMAX_M3.
+	dash := model("minimax-m3", "a", litellmv1alpha1.LiteLLMParams{Model: "openai/a", APIKeyRef: ref("s1")})
+	dot := model("minimax.m3", "b", litellmv1alpha1.LiteLLMParams{Model: "openai/b", APIKeyRef: ref("s2")})
+
+	_, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{dash, dot})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "same API key env var")
 }
 
 func TestRenderConfig_InvalidJSONErrors(t *testing.T) {

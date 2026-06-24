@@ -61,20 +61,16 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := r.applyConfigMap(ctx, &proxy, rendered.yaml); err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply configmap: %w", err)
 	}
-	if err := r.applyDeployment(ctx, &proxy, rendered); err != nil {
+	ready, err := r.applyDeployment(ctx, &proxy, rendered)
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply deployment: %w", err)
 	}
 	if err := r.applyService(ctx, &proxy); err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply service: %w", err)
 	}
 
-	var deploy appsv1.Deployment
-	if err := r.Get(ctx, types.NamespacedName{Name: proxy.Name, Namespace: proxy.Namespace}, &deploy); err != nil {
-		return ctrl.Result{}, fmt.Errorf("get deployment: %w", err)
-	}
-
 	logger.Info("reconciled proxy", "models", len(models), "configHash", rendered.hash)
-	return ctrl.Result{}, r.markReady(ctx, &proxy, rendered.hash, int32(len(models)), deploy.Status.ReadyReplicas)
+	return ctrl.Result{}, r.markReady(ctx, &proxy, rendered.hash, int32(len(models)), ready)
 }
 
 func (r *LiteLLMProxyReconciler) matchingModels(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) ([]litellmv1alpha1.LiteLLMModel, error) {
@@ -103,15 +99,21 @@ func (r *LiteLLMProxyReconciler) applyConfigMap(ctx context.Context, proxy *lite
 	return err
 }
 
-func (r *LiteLLMProxyReconciler) applyDeployment(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, rendered renderedConfig) error {
+// applyDeployment creates or updates the proxy Deployment and returns its
+// current ready replica count. CreateOrUpdate leaves the live status on the
+// object, so there is no need to re-Get it (which would race the cache); the
+// Owns watch re-reconciles the proxy as the count changes.
+func (r *LiteLLMProxyReconciler) applyDeployment(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, rendered renderedConfig) (int32, error) {
 	desired := buildDeployment(proxy, rendered.hash, rendered.envVars)
 	deploy := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: desired.Name, Namespace: desired.Namespace}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
 		deploy.Labels = desired.Labels
 		deploy.Spec = desired.Spec
 		return controllerutil.SetControllerReference(proxy, deploy, r.Scheme)
-	})
-	return err
+	}); err != nil {
+		return 0, err
+	}
+	return deploy.Status.ReadyReplicas, nil
 }
 
 func (r *LiteLLMProxyReconciler) applyService(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) error {

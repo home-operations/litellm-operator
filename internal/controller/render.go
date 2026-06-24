@@ -41,6 +41,7 @@ func renderConfig(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.
 
 	modelList := make([]map[string]any, 0, len(sorted))
 	envVars := make([]corev1.EnvVar, 0, len(sorted))
+	envOwner := make(map[string]string, len(sorted))
 
 	for i := range sorted {
 		m := &sorted[i]
@@ -73,6 +74,13 @@ func renderConfig(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.
 		switch {
 		case p.APIKeyRef != nil:
 			envName := m.APIKeyEnvVarName()
+			// Backstop for the admission webhook: two models whose names sanitize
+			// to the same env var would otherwise silently clobber each other's key.
+			if owner, ok := envOwner[envName]; ok {
+				return renderedConfig{}, fmt.Errorf(
+					"models %q and %q derive the same API key env var %q", owner, m.Name, envName)
+			}
+			envOwner[envName] = m.Name
 			params["api_key"] = "os.environ/" + envName
 			envVars = append(envVars, corev1.EnvVar{
 				Name: envName,
