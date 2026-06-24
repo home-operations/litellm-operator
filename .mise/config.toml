@@ -74,7 +74,7 @@ cp config/crd/bases/*.yaml charts/litellm-operator/crds/
 [tasks.test]
 description = "Run unit tests"
 depends = ["manifests", "generate", "fmt", "vet"]
-run = "go test $(go list ./... | grep -v /integration) -coverprofile cover.out"
+run = "go test $(go list ./... | grep -v /integration | grep -v /e2e) -coverprofile cover.out"
 
 [tasks.test-integration]
 description = "Run integration tests with envtest"
