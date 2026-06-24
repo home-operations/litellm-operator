@@ -265,6 +265,14 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
+              extraConfig:
+                description: |-
+                  ExtraConfig is merged into the top level of the rendered config.yaml,
+                  covering any config key without a dedicated field (e.g. guardrails,
+                  mcp_servers, callback_settings, environment_variables). The model_list and
+                  the typed settings blocks above take precedence over keys set here.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               generalSettings:
                 description: GeneralSettings maps verbatim to the config.yaml general_settings
                   block.

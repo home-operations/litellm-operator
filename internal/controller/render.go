@@ -107,7 +107,14 @@ func renderConfig(proxy *litellmv1alpha1.LiteLLMProxy, models []litellmv1alpha1.
 		modelList = append(modelList, entry)
 	}
 
-	config := map[string]any{"model_list": modelList}
+	config, err := decodeRaw(proxy.Spec.ExtraConfig)
+	if err != nil {
+		return renderedConfig{}, fmt.Errorf("extraConfig: %w", err)
+	}
+	if config == nil {
+		config = map[string]any{}
+	}
+	config["model_list"] = modelList
 	if err := mergeSettings(config, "general_settings", proxy.Spec.GeneralSettings); err != nil {
 		return renderedConfig{}, err
 	}

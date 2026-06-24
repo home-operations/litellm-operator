@@ -89,6 +89,15 @@ type LiteLLMProxySpec struct {
 	// +optional
 	LitellmSettings *runtime.RawExtension `json:"litellmSettings,omitempty"`
 
+	// ExtraConfig is merged into the top level of the rendered config.yaml,
+	// covering any config key without a dedicated field (e.g. guardrails,
+	// mcp_servers, callback_settings, environment_variables). The model_list and
+	// the typed settings blocks above take precedence over keys set here.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	ExtraConfig *runtime.RawExtension `json:"extraConfig,omitempty"`
+
 	// Env is injected into the proxy container (e.g. REDIS_HOST, master key).
 	// +optional
 	// +listType=atomic

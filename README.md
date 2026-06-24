@@ -68,6 +68,13 @@ var and keeps them out of the rendered config); `apiKey`/`apiBase` take literals
 When `spec.route` is set, the operator creates and owns a Gateway API HTTPRoute
 fronting the proxy Service; the Gateway API CRDs are only required if you use it.
 
+The proxy's `generalSettings`, `routerSettings`, and `litellmSettings` are
+free-form passthroughs, and `spec.extraConfig` is merged into the top level of
+the rendered `config.yaml` for any other key litellm accepts (`guardrails`,
+`mcp_servers`, `callback_settings`, `environment_variables`, ...), so the whole
+config surface is expressible, not just the typed fields. The generated
+`model_list` and the typed settings blocks take precedence over `extraConfig`.
+
 ## Validation
 
 A validating admission webhook (enabled by default) rejects mistakes before they

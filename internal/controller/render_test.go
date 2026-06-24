@@ -229,6 +229,41 @@ func TestRenderConfig_GlobalSettingsBlocks(t *testing.T) {
 	assert.Equal(t, true, cfg["litellm_settings"].(map[string]any)["cache"])
 }
 
+func TestRenderConfig_ExtraConfigMergesTopLevelKeys(t *testing.T) {
+	proxy := &litellmv1alpha1.LiteLLMProxy{
+		Spec: litellmv1alpha1.LiteLLMProxySpec{
+			RouterSettings: raw(`{"routing_strategy":"simple-shuffle"}`),
+			ExtraConfig: raw(`{
+				"guardrails":[{"guardrail_name":"g1"}],
+				"mcp_servers":{"s":{"url":"http://x"}},
+				"environment_variables":{"FOO":"bar"}
+			}`),
+		},
+	}
+	got, err := renderConfig(proxy, nil)
+	require.NoError(t, err)
+
+	cfg := parse(t, got.yaml)
+	assert.Contains(t, cfg, "guardrails")
+	assert.Contains(t, cfg, "mcp_servers")
+	assert.Equal(t, "bar", cfg["environment_variables"].(map[string]any)["FOO"])
+	// dedicated fields still render alongside extraConfig
+	assert.Equal(t, "simple-shuffle", cfg["router_settings"].(map[string]any)["routing_strategy"])
+}
+
+func TestRenderConfig_ModelListWinsOverExtraConfig(t *testing.T) {
+	m := model("a", "a", litellmv1alpha1.LiteLLMParams{Model: modelOpenAIM})
+	proxy := &litellmv1alpha1.LiteLLMProxy{
+		Spec: litellmv1alpha1.LiteLLMProxySpec{ExtraConfig: raw(`{"model_list":[{"model_name":"bogus"}]}`)},
+	}
+	got, err := renderConfig(proxy, []litellmv1alpha1.LiteLLMModel{m})
+	require.NoError(t, err)
+
+	list := parse(t, got.yaml)["model_list"].([]any)
+	require.Len(t, list, 1)
+	assert.Equal(t, "a", list[0].(map[string]any)["model_name"])
+}
+
 func TestRenderConfig_OmitsUnsetGlobalSettingsAndOptionalParams(t *testing.T) {
 	m := model("m", "m", litellmv1alpha1.LiteLLMParams{Model: modelOpenAIM})
 	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
