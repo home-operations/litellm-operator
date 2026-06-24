@@ -435,7 +435,8 @@ spec:
               modelSelector:
                 description: |-
                   ModelSelector selects which LiteLLMModel resources (in this namespace) this
-                  proxy serves. An empty selector matches nothing; set matchLabels to opt models in.
+                  proxy serves. When omitted, the proxy adopts every LiteLLMModel in its
+                  namespace that does not pin a different proxy via spec.proxyRef.
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.
@@ -698,6 +699,43 @@ spec:
                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                     type: object
                 type: object
+              route:
+                description: |-
+                  Route, when set, makes the operator create and own a Gateway API HTTPRoute
+                  that fronts the proxy Service.
+                properties:
+                  hostnames:
+                    description: Hostnames the route matches.
+                    items:
+                      type: string
+                    minItems: 1
+                    type: array
+                  parentRefs:
+                    description: ParentRefs are the Gateways the route attaches to.
+                    items:
+                      description: RouteParentRef identifies the Gateway (or other
+                        parent) the HTTPRoute attaches to.
+                      properties:
+                        name:
+                          description: Name of the parent Gateway.
+                          type: string
+                        namespace:
+                          description: Namespace of the parent Gateway. Defaults to
+                            the proxy's namespace.
+                          type: string
+                        sectionName:
+                          description: SectionName pins the route to a specific Gateway
+                            listener.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    minItems: 1
+                    type: array
+                required:
+                - hostnames
+                - parentRefs
+                type: object
               routerSettings:
                 description: RouterSettings maps verbatim to the config.yaml router_settings
                   block.
@@ -719,8 +757,6 @@ spec:
                     description: Type of Service to create.
                     type: string
                 type: object
-            required:
-            - modelSelector
             type: object
           status:
             description: LiteLLMProxyStatus reports the observed state of the proxy.

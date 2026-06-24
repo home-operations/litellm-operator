@@ -58,6 +58,18 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 {{- if .Values.webhook.enabled }}
 - apiGroups:
   - ""

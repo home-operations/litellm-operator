@@ -7,7 +7,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const apiKeyEnvPrefix = "LITELLM_MODELKEY_"
+const (
+	apiKeyEnvPrefix  = "LITELLM_MODELKEY_"
+	apiBaseEnvPrefix = "LITELLM_MODELBASE_"
+)
 
 // SecretKeyRef points at a single key within a Secret in the same namespace as
 // the LiteLLMModel. The operator wires it into the proxy Deployment as an
@@ -30,9 +33,13 @@ type LiteLLMParams struct {
 	// +kubebuilder:validation:Required
 	Model string `json:"model"`
 
-	// APIBase is the provider base URL. Accepts a literal or an os.environ/VAR reference.
+	// APIBase is the provider base URL. Mutually exclusive with APIBaseRef.
 	// +optional
 	APIBase string `json:"apiBase,omitempty"`
+
+	// APIBaseRef sources the provider base URL from a Secret. Mutually exclusive with APIBase.
+	// +optional
+	APIBaseRef *SecretKeyRef `json:"apiBaseRef,omitempty"`
 
 	// APIKeyRef sources the provider API key from a Secret. Mutually exclusive with APIKey.
 	// +optional
@@ -66,22 +73,63 @@ type LiteLLMParams struct {
 	Additional *runtime.RawExtension `json:"additional,omitempty"`
 }
 
+// ModelInfo maps to model_list[].model_info. The common fields are typed and
+// validated; anything else goes in Extra.
+type ModelInfo struct {
+	// MaxTokens is the model's total token budget (max_tokens).
+	// +optional
+	MaxTokens *int64 `json:"maxTokens,omitempty"`
+
+	// MaxInputTokens is the context window size (max_input_tokens).
+	// +optional
+	MaxInputTokens *int64 `json:"maxInputTokens,omitempty"`
+
+	// MaxOutputTokens is the maximum completion length (max_output_tokens).
+	// +optional
+	MaxOutputTokens *int64 `json:"maxOutputTokens,omitempty"`
+
+	// Mode is the endpoint mode, e.g. "chat", "messages", "embedding".
+	// +optional
+	Mode string `json:"mode,omitempty"`
+
+	// SupportsFunctionCalling advertises tool/function-calling support.
+	// +optional
+	SupportsFunctionCalling *bool `json:"supportsFunctionCalling,omitempty"`
+
+	// SupportsPromptCaching advertises prompt-caching support.
+	// +optional
+	SupportsPromptCaching *bool `json:"supportsPromptCaching,omitempty"`
+
+	// SupportsVision advertises image-input support.
+	// +optional
+	SupportsVision *bool `json:"supportsVision,omitempty"`
+
+	// Extra holds any further model_info keys, merged verbatim under the typed
+	// fields (which win on conflict).
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Extra *runtime.RawExtension `json:"extra,omitempty"`
+}
+
 // LiteLLMModelSpec defines a single proxy model_list entry.
 type LiteLLMModelSpec struct {
 	// ModelName is the public name clients call (model_list[].model_name).
 	// +kubebuilder:validation:Required
 	ModelName string `json:"modelName"`
 
+	// ProxyRef explicitly binds this model to a LiteLLMProxy by name in the same
+	// namespace. When set it takes precedence over any proxy's modelSelector.
+	// +optional
+	ProxyRef string `json:"proxyRef,omitempty"`
+
 	// Params is the litellm_params block for this model.
 	// +kubebuilder:validation:Required
 	Params LiteLLMParams `json:"params"`
 
-	// Info maps verbatim to model_list[].model_info (free-form metadata such as
-	// maxInputTokens, supportsFunctionCalling, mode, ...).
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +kubebuilder:validation:Type=object
+	// Info is the typed model_info block for this model.
 	// +optional
-	Info *runtime.RawExtension `json:"info,omitempty"`
+	Info *ModelInfo `json:"info,omitempty"`
 }
 
 // LiteLLMModelStatus reports which proxies currently include this model.
@@ -114,7 +162,17 @@ type LiteLLMModel struct {
 // from config.yaml as os.environ/<name>. Derived from the resource name (a
 // DNS-1123 subdomain), e.g. "minimax-m3" -> "LITELLM_MODELKEY_MINIMAX_M3".
 func (m *LiteLLMModel) APIKeyEnvVarName() string {
-	mapped := strings.Map(func(r rune) rune {
+	return apiKeyEnvPrefix + sanitizeEnvVar(m.Name)
+}
+
+// APIBaseEnvVarName is the deterministic env var name for this model's
+// secret-backed API base, e.g. "qwen" -> "LITELLM_MODELBASE_QWEN".
+func (m *LiteLLMModel) APIBaseEnvVarName() string {
+	return apiBaseEnvPrefix + sanitizeEnvVar(m.Name)
+}
+
+func sanitizeEnvVar(name string) string {
+	return strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z':
 			return r - ('a' - 'A')
@@ -123,8 +181,7 @@ func (m *LiteLLMModel) APIKeyEnvVarName() string {
 		default:
 			return '_'
 		}
-	}, m.Name)
-	return apiKeyEnvPrefix + mapped
+	}, name)
 }
 
 // +kubebuilder:object:root=true

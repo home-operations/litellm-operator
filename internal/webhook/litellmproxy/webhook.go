@@ -38,10 +38,20 @@ func (v *Validator) ValidateDelete(context.Context, *litellmv1alpha1.LiteLLMProx
 }
 
 func (v *Validator) validate(p *litellmv1alpha1.LiteLLMProxy) (admission.Warnings, error) {
-	sel := p.Spec.ModelSelector
-	if len(sel.MatchLabels) == 0 && len(sel.MatchExpressions) == 0 {
-		return nil, fmt.Errorf(
-			"spec.modelSelector must not be empty; an empty selector would match every LiteLLMModel in the namespace")
+	route := p.Spec.Route
+	if route == nil {
+		return nil, nil
+	}
+	if len(route.Hostnames) == 0 {
+		return nil, fmt.Errorf("spec.route.hostnames must not be empty")
+	}
+	if len(route.ParentRefs) == 0 {
+		return nil, fmt.Errorf("spec.route.parentRefs must not be empty")
+	}
+	for i, ref := range route.ParentRefs {
+		if ref.Name == "" {
+			return nil, fmt.Errorf("spec.route.parentRefs[%d].name must not be empty", i)
+		}
 	}
 	return nil, nil
 }

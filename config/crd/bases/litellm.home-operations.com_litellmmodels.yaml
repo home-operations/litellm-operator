@@ -53,11 +53,42 @@ spec:
             description: LiteLLMModelSpec defines a single proxy model_list entry.
             properties:
               info:
-                description: |-
-                  Info maps verbatim to model_list[].model_info (free-form metadata such as
-                  maxInputTokens, supportsFunctionCalling, mode, ...).
+                description: Info is the typed model_info block for this model.
+                properties:
+                  extra:
+                    description: |-
+                      Extra holds any further model_info keys, merged verbatim under the typed
+                      fields (which win on conflict).
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  maxInputTokens:
+                    description: MaxInputTokens is the context window size (max_input_tokens).
+                    format: int64
+                    type: integer
+                  maxOutputTokens:
+                    description: MaxOutputTokens is the maximum completion length
+                      (max_output_tokens).
+                    format: int64
+                    type: integer
+                  maxTokens:
+                    description: MaxTokens is the model's total token budget (max_tokens).
+                    format: int64
+                    type: integer
+                  mode:
+                    description: Mode is the endpoint mode, e.g. "chat", "messages",
+                      "embedding".
+                    type: string
+                  supportsFunctionCalling:
+                    description: SupportsFunctionCalling advertises tool/function-calling
+                      support.
+                    type: boolean
+                  supportsPromptCaching:
+                    description: SupportsPromptCaching advertises prompt-caching support.
+                    type: boolean
+                  supportsVision:
+                    description: SupportsVision advertises image-input support.
+                    type: boolean
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
               modelName:
                 description: ModelName is the public name clients call (model_list[].model_name).
                 type: string
@@ -71,9 +102,23 @@ spec:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   apiBase:
-                    description: APIBase is the provider base URL. Accepts a literal
-                      or an os.environ/VAR reference.
+                    description: APIBase is the provider base URL. Mutually exclusive
+                      with APIBaseRef.
                     type: string
+                  apiBaseRef:
+                    description: APIBaseRef sources the provider base URL from a Secret.
+                      Mutually exclusive with APIBase.
+                    properties:
+                      key:
+                        description: Key within the Secret holding the value.
+                        type: string
+                      name:
+                        description: Name of the Secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
                   apiKey:
                     description: APIKey is a literal or os.environ/VAR API key. Prefer
                       APIKeyRef for real secrets.
@@ -114,6 +159,11 @@ spec:
                 required:
                 - model
                 type: object
+              proxyRef:
+                description: |-
+                  ProxyRef explicitly binds this model to a LiteLLMProxy by name in the same
+                  namespace. When set it takes precedence over any proxy's modelSelector.
+                type: string
             required:
             - modelName
             - params

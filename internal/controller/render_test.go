@@ -92,7 +92,10 @@ func TestRenderConfig_TypedFieldsAndPassthroughMerge(t *testing.T) {
 		TPM:        ptr[int64](200000),
 		Additional: raw(`{"timeout": 30, "stream_timeout": 10}`),
 	})
-	m.Spec.Info = raw(`{"max_input_tokens": 262144, "supports_function_calling": true}`)
+	m.Spec.Info = &litellmv1alpha1.ModelInfo{
+		MaxInputTokens:          ptr[int64](262144),
+		SupportsFunctionCalling: ptr(true),
+	}
 
 	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
 	require.NoError(t, err)
@@ -114,6 +117,55 @@ func TestRenderConfig_TypedFieldsAndPassthroughMerge(t *testing.T) {
 	info := entry["model_info"].(map[string]any)
 	assert.EqualValues(t, 262144, info["max_input_tokens"])
 	assert.Equal(t, true, info["supports_function_calling"])
+}
+
+func TestRenderConfig_TypedModelInfoMapsToSnakeCase(t *testing.T) {
+	m := model("mm", "MiniMax-M3", litellmv1alpha1.LiteLLMParams{Model: "minimax/MiniMax-M3"})
+	m.Spec.Info = &litellmv1alpha1.ModelInfo{
+		MaxTokens:               ptr[int64](1000000),
+		MaxInputTokens:          ptr[int64](192000),
+		MaxOutputTokens:         ptr[int64](16384),
+		Mode:                    "messages",
+		SupportsFunctionCalling: ptr(true),
+		SupportsPromptCaching:   ptr(true),
+		SupportsVision:          ptr(false),
+		Extra:                   raw(`{"custom_key": "v"}`),
+	}
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	require.NoError(t, err)
+
+	info := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["model_info"].(map[string]any)
+	assert.EqualValues(t, 1000000, info["max_tokens"])
+	assert.EqualValues(t, 192000, info["max_input_tokens"])
+	assert.EqualValues(t, 16384, info["max_output_tokens"])
+	assert.Equal(t, "messages", info["mode"])
+	assert.Equal(t, true, info["supports_function_calling"])
+	assert.Equal(t, true, info["supports_prompt_caching"])
+	assert.Equal(t, false, info["supports_vision"])
+	assert.Equal(t, "v", info["custom_key"])
+}
+
+func TestRenderConfig_APIBaseRefBecomesEnvRef(t *testing.T) {
+	m := model("qwen", "qwen", litellmv1alpha1.LiteLLMParams{
+		Model:      "openai/qwen",
+		APIBaseRef: &litellmv1alpha1.SecretKeyRef{Name: "litellm", Key: "SUPER_SERVER_URL"},
+		APIKeyRef:  &litellmv1alpha1.SecretKeyRef{Name: "litellm", Key: "SUPER_SERVER_PASS"},
+	})
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
+	require.NoError(t, err)
+
+	params := parse(t, got.yaml)["model_list"].([]any)[0].(map[string]any)["litellm_params"].(map[string]any)
+	assert.Equal(t, "os.environ/LITELLM_MODELBASE_QWEN", params["api_base"])
+	assert.Equal(t, "os.environ/LITELLM_MODELKEY_QWEN", params["api_key"])
+
+	require.Len(t, got.envVars, 2)
+	byName := map[string]string{}
+	for _, e := range got.envVars {
+		byName[e.Name] = e.ValueFrom.SecretKeyRef.Key
+	}
+	assert.Equal(t, "SUPER_SERVER_URL", byName["LITELLM_MODELBASE_QWEN"])
+	assert.Equal(t, "SUPER_SERVER_PASS", byName["LITELLM_MODELKEY_QWEN"])
+	assert.NotContains(t, got.yaml, "SUPER_SERVER_URL")
 }
 
 func TestRenderConfig_TypedFieldWinsOverAdditional(t *testing.T) {
@@ -209,7 +261,7 @@ func TestRenderConfig_RejectsCollidingAPIKeyEnvVars(t *testing.T) {
 
 	_, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{dash, dot})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "same API key env var")
+	assert.Contains(t, err.Error(), "same env var")
 }
 
 func TestRenderConfig_InvalidJSONErrors(t *testing.T) {

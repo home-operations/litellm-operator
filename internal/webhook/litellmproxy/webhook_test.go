@@ -11,35 +11,43 @@ import (
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 )
 
-func proxyWith(sel metav1.LabelSelector) *litellmv1alpha1.LiteLLMProxy {
+func proxyWith(route *litellmv1alpha1.ProxyRoute) *litellmv1alpha1.LiteLLMProxy {
 	return &litellmv1alpha1.LiteLLMProxy{
 		ObjectMeta: metav1.ObjectMeta{Name: "main", Namespace: "ai"},
-		Spec:       litellmv1alpha1.LiteLLMProxySpec{ModelSelector: sel},
+		Spec:       litellmv1alpha1.LiteLLMProxySpec{Route: route},
 	}
 }
 
-func TestValidate_RejectsEmptySelector(t *testing.T) {
+func TestValidate_NoRouteIsValid(t *testing.T) {
 	v := &Validator{}
-	_, err := v.ValidateCreate(context.Background(), proxyWith(metav1.LabelSelector{}))
+	_, err := v.ValidateCreate(context.Background(), proxyWith(nil))
+	require.NoError(t, err)
+}
+
+func TestValidate_ValidRoute(t *testing.T) {
+	v := &Validator{}
+	_, err := v.ValidateCreate(context.Background(), proxyWith(&litellmv1alpha1.ProxyRoute{
+		Hostnames:  []string{"litellm.example.com"},
+		ParentRefs: []litellmv1alpha1.RouteParentRef{{Name: "envoy-external", Namespace: "network"}},
+	}))
+	require.NoError(t, err)
+}
+
+func TestValidate_RejectsRouteWithoutHostnames(t *testing.T) {
+	v := &Validator{}
+	_, err := v.ValidateCreate(context.Background(), proxyWith(&litellmv1alpha1.ProxyRoute{
+		ParentRefs: []litellmv1alpha1.RouteParentRef{{Name: "envoy-external"}},
+	}))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "modelSelector must not be empty")
+	assert.Contains(t, err.Error(), "hostnames must not be empty")
 }
 
-func TestValidate_AllowsMatchLabels(t *testing.T) {
+func TestValidate_RejectsParentRefWithoutName(t *testing.T) {
 	v := &Validator{}
-	_, err := v.ValidateCreate(context.Background(), proxyWith(metav1.LabelSelector{
-		MatchLabels: map[string]string{"proxy": "main"},
+	_, err := v.ValidateUpdate(context.Background(), nil, proxyWith(&litellmv1alpha1.ProxyRoute{
+		Hostnames:  []string{"litellm.example.com"},
+		ParentRefs: []litellmv1alpha1.RouteParentRef{{Name: ""}},
 	}))
-	require.NoError(t, err)
-}
-
-func TestValidate_AllowsMatchExpressions(t *testing.T) {
-	v := &Validator{}
-	_, err := v.ValidateUpdate(context.Background(), nil, proxyWith(metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      "proxy",
-			Operator: metav1.LabelSelectorOpExists,
-		}},
-	}))
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "name must not be empty")
 }

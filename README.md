@@ -29,22 +29,21 @@ metadata:
   name: main
   namespace: ai
 spec:
-  modelSelector:
-    matchLabels:
-      litellm.home-operations.com/proxy: main
   routerSettings:
     routing_strategy: simple-shuffle
-  envFrom:
-    - secretRef:
-        name: litellm-secrets
+  # No modelSelector: this proxy adopts every LiteLLMModel in its namespace.
+  route:
+    hostnames:
+      - litellm.example.com
+    parentRefs:
+      - name: envoy-external
+        namespace: network
 ---
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
   name: glm-5-2
   namespace: ai
-  labels:
-    litellm.home-operations.com/proxy: main
 spec:
   modelName: glm-5.2
   params:
@@ -55,24 +54,29 @@ spec:
       key: ZAI_API_KEY
     dropParams: true
   info:
-    max_input_tokens: 1000000
-    supports_function_calling: true
+    maxInputTokens: 1000000
+    supportsFunctionCalling: true
 ```
 
-The typed fields cover the common `litellm_params`; anything else (provider
-quirks) goes under `params.additional`, and `info` maps verbatim to
-`model_info`.
+Models bind to a proxy in one of three ways, most specific first: a model's
+`spec.proxyRef` names its proxy explicitly; otherwise a proxy's
+`spec.modelSelector` matches model labels; otherwise a proxy with no selector
+adopts every model in its namespace. `info` fields are typed and validated, with
+`info.extra` and `params.additional` as escape hatches for the long tail.
+`apiKeyRef`/`apiBaseRef` source values from a Secret (the operator wires the env
+var and keeps them out of the rendered config); `apiKey`/`apiBase` take literals.
+When `spec.route` is set, the operator creates and owns a Gateway API HTTPRoute
+fronting the proxy Service; the Gateway API CRDs are only required if you use it.
 
 ## Validation
 
 A validating admission webhook (enabled by default) rejects mistakes before they
 reach the cluster: a `LiteLLMModel` that sets both `apiKey` and `apiKeyRef`, two
 models whose names sanitize to the same injected env var (which would silently
-clobber one key), and a `LiteLLMProxy` whose `modelSelector` is empty (which
-would otherwise match every model in the namespace). The operator self-manages
-the webhook serving certificate and patches the CA bundle into the
-`ValidatingWebhookConfiguration`, so there is no cert-manager dependency. Set
-`webhook.enabled=false` to turn it off.
+clobber one key), and a `LiteLLMProxy` whose `spec.route` is missing hostnames or
+a parent reference. The operator self-manages the webhook serving certificate and
+patches the CA bundle into the `ValidatingWebhookConfiguration`, so there is no
+cert-manager dependency. Set `webhook.enabled=false` to turn it off.
 
 ## Install
 

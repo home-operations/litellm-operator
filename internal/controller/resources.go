@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 )
@@ -19,7 +20,7 @@ func configMapName(proxy *litellmv1alpha1.LiteLLMProxy) string {
 
 func selectorLabels(proxy *litellmv1alpha1.LiteLLMProxy) map[string]string {
 	return map[string]string{
-		"app.kubernetes.io/name":       "litellm",
+		"app.kubernetes.io/name":       appName,
 		"app.kubernetes.io/instance":   proxy.Name,
 		"app.kubernetes.io/managed-by": "litellm-operator",
 	}
@@ -51,6 +52,56 @@ func buildService(proxy *litellmv1alpha1.LiteLLMProxy) *corev1.Service {
 				Port:       proxy.Spec.Service.Port,
 				TargetPort: intstr.FromInt32(proxyPort),
 				Protocol:   corev1.ProtocolTCP,
+			}},
+		},
+	}
+}
+
+func buildRoute(proxy *litellmv1alpha1.LiteLLMProxy) *gatewayv1.HTTPRoute {
+	route := proxy.Spec.Route
+
+	parentRefs := make([]gatewayv1.ParentReference, 0, len(route.ParentRefs))
+	for _, p := range route.ParentRefs {
+		ref := gatewayv1.ParentReference{Name: gatewayv1.ObjectName(p.Name)}
+		if p.Namespace != "" {
+			ns := gatewayv1.Namespace(p.Namespace)
+			ref.Namespace = &ns
+		}
+		if p.SectionName != "" {
+			sn := gatewayv1.SectionName(p.SectionName)
+			ref.SectionName = &sn
+		}
+		parentRefs = append(parentRefs, ref)
+	}
+
+	hostnames := make([]gatewayv1.Hostname, 0, len(route.Hostnames))
+	for _, h := range route.Hostnames {
+		hostnames = append(hostnames, gatewayv1.Hostname(h))
+	}
+
+	port := proxy.Spec.Service.Port
+	if port == 0 {
+		port = proxyPort
+	}
+
+	return &gatewayv1.HTTPRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      proxy.Name,
+			Namespace: proxy.Namespace,
+			Labels:    selectorLabels(proxy),
+		},
+		Spec: gatewayv1.HTTPRouteSpec{
+			CommonRouteSpec: gatewayv1.CommonRouteSpec{ParentRefs: parentRefs},
+			Hostnames:       hostnames,
+			Rules: []gatewayv1.HTTPRouteRule{{
+				BackendRefs: []gatewayv1.HTTPBackendRef{{
+					BackendRef: gatewayv1.BackendRef{
+						BackendObjectReference: gatewayv1.BackendObjectReference{
+							Name: gatewayv1.ObjectName(proxy.Name),
+							Port: &port,
+						},
+					},
+				}},
 			}},
 		},
 	}

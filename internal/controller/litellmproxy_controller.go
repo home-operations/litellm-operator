@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 )
@@ -35,6 +36,7 @@ type LiteLLMProxyReconciler struct {
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmmodels,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile renders the proxy config from matching models and applies the owned resources.
 func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -68,24 +70,47 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := r.applyService(ctx, &proxy); err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply service: %w", err)
 	}
+	if err := r.reconcileRoute(ctx, &proxy); err != nil {
+		return ctrl.Result{}, fmt.Errorf("reconcile route: %w", err)
+	}
 
 	logger.Info("reconciled proxy", "models", len(models), "configHash", rendered.hash)
 	return ctrl.Result{}, r.markReady(ctx, &proxy, rendered.hash, int32(len(models)), ready)
 }
 
 func (r *LiteLLMProxyReconciler) matchingModels(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) ([]litellmv1alpha1.LiteLLMModel, error) {
-	selector, err := metav1.LabelSelectorAsSelector(&proxy.Spec.ModelSelector)
-	if err != nil {
-		return nil, err
-	}
 	var list litellmv1alpha1.LiteLLMModelList
-	if err := r.List(ctx, &list,
-		client.InNamespace(proxy.Namespace),
-		client.MatchingLabelsSelector{Selector: selector},
-	); err != nil {
+	if err := r.List(ctx, &list, client.InNamespace(proxy.Namespace)); err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+	adopted := make([]litellmv1alpha1.LiteLLMModel, 0, len(list.Items))
+	for i := range list.Items {
+		ok, err := proxyAdoptsModel(proxy, &list.Items[i])
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			adopted = append(adopted, list.Items[i])
+		}
+	}
+	return adopted, nil
+}
+
+// proxyAdoptsModel reports whether the proxy serves the model. An explicit
+// spec.proxyRef on the model wins; otherwise the proxy's modelSelector decides,
+// and a proxy with no selector adopts every model in its namespace.
+func proxyAdoptsModel(proxy *litellmv1alpha1.LiteLLMProxy, m *litellmv1alpha1.LiteLLMModel) (bool, error) {
+	if m.Spec.ProxyRef != "" {
+		return m.Spec.ProxyRef == proxy.Name, nil
+	}
+	if proxy.Spec.ModelSelector == nil {
+		return true, nil
+	}
+	selector, err := metav1.LabelSelectorAsSelector(proxy.Spec.ModelSelector)
+	if err != nil {
+		return false, err
+	}
+	return selector.Matches(labels.Set(m.Labels)), nil
 }
 
 func (r *LiteLLMProxyReconciler) applyConfigMap(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, config string) error {
@@ -129,6 +154,28 @@ func (r *LiteLLMProxyReconciler) applyService(ctx context.Context, proxy *litell
 	return err
 }
 
+// reconcileRoute creates/updates the proxy's HTTPRoute when spec.route is set,
+// and deletes a previously-created one when it is cleared. The Gateway API CRD
+// is optional: when it is absent and no route is requested, the delete's
+// no-matching-kind error is ignored so the operator runs on clusters without it.
+func (r *LiteLLMProxyReconciler) reconcileRoute(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy) error {
+	if proxy.Spec.Route == nil {
+		route := &gatewayv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: proxy.Name, Namespace: proxy.Namespace}}
+		if err := r.Delete(ctx, route); err != nil && !apierrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
+			return err
+		}
+		return nil
+	}
+	desired := buildRoute(proxy)
+	route := &gatewayv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: desired.Name, Namespace: desired.Namespace}}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
+		route.Labels = desired.Labels
+		route.Spec = desired.Spec
+		return controllerutil.SetControllerReference(proxy, route, r.Scheme)
+	})
+	return err
+}
+
 func (r *LiteLLMProxyReconciler) markReady(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, hash string, models, ready int32) error {
 	meta.SetStatusCondition(&proxy.Status.Conditions, metav1.Condition{
 		Type:               "Ready",
@@ -163,15 +210,14 @@ func (r *LiteLLMProxyReconciler) proxiesForModel(ctx context.Context, obj client
 	if err := r.List(ctx, &proxies, client.InNamespace(obj.GetNamespace())); err != nil {
 		return nil
 	}
-	modelLabels := labels.Set(obj.GetLabels())
+	model, ok := obj.(*litellmv1alpha1.LiteLLMModel)
+	if !ok {
+		return nil
+	}
 	var requests []reconcile.Request
 	for i := range proxies.Items {
 		p := &proxies.Items[i]
-		selector, err := metav1.LabelSelectorAsSelector(&p.Spec.ModelSelector)
-		if err != nil || selector.Empty() {
-			continue
-		}
-		if selector.Matches(modelLabels) {
+		if adopts, err := proxyAdoptsModel(p, model); err == nil && adopts {
 			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name, Namespace: p.Namespace}})
 		}
 	}

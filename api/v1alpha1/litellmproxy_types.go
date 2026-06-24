@@ -6,6 +6,32 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// RouteParentRef identifies the Gateway (or other parent) the HTTPRoute attaches to.
+type RouteParentRef struct {
+	// Name of the parent Gateway.
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+
+	// Namespace of the parent Gateway. Defaults to the proxy's namespace.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// SectionName pins the route to a specific Gateway listener.
+	// +optional
+	SectionName string `json:"sectionName,omitempty"`
+}
+
+// ProxyRoute describes the HTTPRoute the operator creates for the proxy.
+type ProxyRoute struct {
+	// Hostnames the route matches.
+	// +kubebuilder:validation:MinItems=1
+	Hostnames []string `json:"hostnames"`
+
+	// ParentRefs are the Gateways the route attaches to.
+	// +kubebuilder:validation:MinItems=1
+	ParentRefs []RouteParentRef `json:"parentRefs"`
+}
+
 // ProxyServiceSpec configures the Service fronting the proxy.
 type ProxyServiceSpec struct {
 	// Type of Service to create.
@@ -35,9 +61,15 @@ type LiteLLMProxySpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// ModelSelector selects which LiteLLMModel resources (in this namespace) this
-	// proxy serves. An empty selector matches nothing; set matchLabels to opt models in.
-	// +kubebuilder:validation:Required
-	ModelSelector metav1.LabelSelector `json:"modelSelector"`
+	// proxy serves. When omitted, the proxy adopts every LiteLLMModel in its
+	// namespace that does not pin a different proxy via spec.proxyRef.
+	// +optional
+	ModelSelector *metav1.LabelSelector `json:"modelSelector,omitempty"`
+
+	// Route, when set, makes the operator create and own a Gateway API HTTPRoute
+	// that fronts the proxy Service.
+	// +optional
+	Route *ProxyRoute `json:"route,omitempty"`
 
 	// GeneralSettings maps verbatim to the config.yaml general_settings block.
 	// +kubebuilder:pruning:PreserveUnknownFields
