@@ -50,11 +50,10 @@ rules:
   - update
   - watch
 - apiGroups:
-  - litellm.home-operations.com
+  - inference.llmkube.dev
   resources:
-  - litellmguardrails
-  - litellmmcpservers
-  - litellmmodels
+  - inferenceservices
+  - models
   verbs:
   - get
   - list
@@ -62,6 +61,16 @@ rules:
 - apiGroups:
   - litellm.home-operations.com
   resources:
+  - litellmguardrails
+  - litellmmcpservers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
+  - litellmmodels
   - litellmproxies
   verbs:
   - create

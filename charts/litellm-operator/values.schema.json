@@ -170,6 +170,19 @@
       "title": "livenessProbe",
       "type": "object"
     },
+    "llmkube": {
+      "properties": {
+        "autoRegister": {
+          "default": false,
+          "description": "Auto-register LiteLLMModels from LLMKube (inference.llmkube.dev)\nInferenceServices. When a service reaches Ready, the operator creates a\nmatching LiteLLMModel in the same namespace, which proxies adopt as usual.\nAdds RBAC for inference.llmkube.dev and sets ENABLE_LLMKUBE_AUTOREGISTER.\nNo-op (logs a warning) if the LLMKube CRDs are not installed.",
+          "title": "autoRegister",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "title": "llmkube",
+      "type": "object"
+    },
     "nameOverride": {
       "default": "",
       "description": "Override the chart name used in resource names.",

@@ -24,6 +24,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	inferencev1alpha1 "github.com/defilantech/llmkube/api/v1alpha1"
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 	"github.com/home-operations/litellm-operator/internal/controller"
 )
@@ -31,9 +32,19 @@ import (
 // gatewayAPICRDPath resolves the gateway-api module's standard CRD directory
 // from the module cache so envtest can serve HTTPRoute.
 func gatewayAPICRDPath() string {
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "sigs.k8s.io/gateway-api").Output()
+	return moduleCRDPath("sigs.k8s.io/gateway-api", "config", "crd", "standard")
+}
+
+// llmkubeCRDPath resolves the LLMKube module's CRD directory from the module
+// cache so envtest can serve InferenceService and Model.
+func llmkubeCRDPath() string {
+	return moduleCRDPath("github.com/defilantech/llmkube", "config", "crd", "bases")
+}
+
+func moduleCRDPath(module string, sub ...string) string {
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", module).Output()
 	Expect(err).NotTo(HaveOccurred())
-	return filepath.Join(strings.TrimSpace(string(out)), "config", "crd", "standard")
+	return filepath.Join(append([]string{strings.TrimSpace(string(out))}, sub...)...)
 }
 
 var (
@@ -56,6 +67,7 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd", "bases"),
 			gatewayAPICRDPath(),
+			llmkubeCRDPath(),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -68,6 +80,7 @@ var _ = BeforeSuite(func() {
 	Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
 	Expect(litellmv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(gatewayv1.Install(scheme)).To(Succeed())
+	Expect(inferencev1alpha1.AddToScheme(scheme)).To(Succeed())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -76,6 +89,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	Expect((&controller.LiteLLMProxyReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr)).To(Succeed())
+
+	Expect((&controller.LLMKubeInferenceServiceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)).To(Succeed())
