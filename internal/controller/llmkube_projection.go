@@ -24,9 +24,8 @@ const (
 	// generic runtime, or vLLM with a non-standard task spelling).
 	llmkubeModeAnnotation = "litellm.home-operations.com/mode"
 
-	// LLMKube has no task-type field, so mode is inferred from the runtime flags
-	// the user already sets. A reranker passes both --reranking and --embedding,
-	// so rerank must win over embedding.
+	// Modes inferred from the runtime flags the user sets (LLMKube has no
+	// task-type field yet).
 	modeEmbedding = "embedding"
 	modeRerank    = "rerank"
 
@@ -79,13 +78,11 @@ func projectInferenceService(isvc *inferencev1alpha1.InferenceService, model *in
 
 // llmkubeModelMode resolves the litellm model_info.mode for an InferenceService.
 // An explicit annotation wins; otherwise the mode is inferred from the runtime
-// flags the user already sets (LLMKube has no task-type field yet), falling back
-// to the endpoint path. An empty result means a plain chat/completion model,
-// where litellm's default needs no mode.
-//
-// When LLMKube grows an authoritative task field (status.task), read it here
-// just below the annotation, above the flag heuristic.
+// flags the user already sets, falling back to the endpoint path. An empty
+// result means a plain chat/completion model, where litellm's default needs no
+// mode.
 func llmkubeModelMode(isvc *inferencev1alpha1.InferenceService) string {
+	// Prefer LLMKube's status.mode here once we bump to a release that exposes it.
 	if m := isvc.Annotations[llmkubeModeAnnotation]; m != "" {
 		return m
 	}
@@ -126,8 +123,8 @@ func llmkubeAPIBase(endpoint string) string {
 }
 
 // projectModelInfo fills only the capability fields LLMKube can report
-// truthfully: the GGUF context length and the inferred mode. Everything else
-// (function calling, vision, prompt caching) is left unset rather than asserted.
+// truthfully (context length from GGUF, mode from flags); everything else is
+// left unset rather than guessed.
 func projectModelInfo(model *inferencev1alpha1.Model, mode string) *litellmv1alpha1.ModelInfo {
 	info := &litellmv1alpha1.ModelInfo{}
 	if model != nil && model.Status.GGUF != nil && model.Status.GGUF.ContextLength > 0 {

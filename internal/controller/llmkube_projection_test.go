@@ -92,7 +92,6 @@ func TestLLMKubeModelMode(t *testing.T) {
 		assert.Equal(t, "embedding", llmkubeModelMode(withArgs("--embedding", "--pooling", "last")))
 	})
 	t.Run("rerank wins over --embedding when both are present", func(t *testing.T) {
-		// LLMKube rerankers pass both --reranking and --embedding.
 		assert.Equal(t, "rerank", llmkubeModelMode(withArgs("--reranking", "--pooling", "rank", "--embedding")))
 	})
 	t.Run("inferred from Args (generic runtime)", func(t *testing.T) {
