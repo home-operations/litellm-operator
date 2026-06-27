@@ -91,6 +91,7 @@ go test ./test/integration/... -v -ginkgo.v
 description = "Run e2e tests against a Kind cluster"
 depends = ["manifests", "generate", "fmt", "vet", "helm-crds"]
 run = '''
+#!/usr/bin/env bash
 set -euo pipefail
 cluster="${KIND_CLUSTER:-litellm-operator-e2e}"
 kind delete cluster --name "$cluster" 2>/dev/null || true
