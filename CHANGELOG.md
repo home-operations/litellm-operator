@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.3](https://github.com/home-operations/litellm-operator/compare/0.0.2...0.0.3) (2026-06-27)
+
+
+### Features
+
+* infer model_info.mode for LLMKube embedding and reranker services ([#11](https://github.com/home-operations/litellm-operator/issues/11)) ([caee50d](https://github.com/home-operations/litellm-operator/commit/caee50d708225b5769d365ff1576546311421e7b))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.8.18 → v0.8.19) ([#12](https://github.com/home-operations/litellm-operator/issues/12)) ([9d01a15](https://github.com/home-operations/litellm-operator/commit/9d01a1524dd23b3512cade768352c96130f29bd5))
+
 ## [0.0.2](https://github.com/home-operations/litellm-operator/compare/0.0.1...0.0.2) (2026-06-27)
 
 
