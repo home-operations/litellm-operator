@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -13,7 +14,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -25,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	inferencev1alpha1 "github.com/defilantech/llmkube/api/v1alpha1"
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 	"github.com/home-operations/litellm-operator/internal/controller"
 	guardrailwebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmguardrail"
@@ -49,6 +53,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(litellmv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gatewayv1.Install(scheme))
+	utilruntime.Must(inferencev1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -141,6 +146,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if autoRegisterEnabled() {
+		setupLLMKubeAutoRegister(mgr)
+	}
+
 	certReady := make(chan struct{})
 	if webhooksEnabled {
 		setupCertRotationAndWebhooks(mgr, certRotationConfig{
@@ -166,6 +175,42 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// autoRegisterEnabled reports whether the operator should mirror LLMKube
+// InferenceServices into LiteLLMModels. Opt-in via ENABLE_LLMKUBE_AUTOREGISTER
+// (any strconv.ParseBool-truthy value: 1, t, true, ...).
+func autoRegisterEnabled() bool {
+	v := os.Getenv("ENABLE_LLMKUBE_AUTOREGISTER")
+	enabled, err := strconv.ParseBool(v)
+	return err == nil && enabled
+}
+
+// setupLLMKubeAutoRegister wires the InferenceService reconciler, but only if the
+// LLMKube CRDs are actually installed. The env var is the user-facing toggle;
+// this discovery check is the safety net so enabling the flag on a cluster
+// without LLMKube logs a warning and skips rather than crash-looping the whole
+// operator (the proxy reconciler shares this process).
+func setupLLMKubeAutoRegister(mgr ctrl.Manager) {
+	gk := schema.GroupKind{Group: "inference.llmkube.dev", Kind: "InferenceService"}
+	if _, err := mgr.GetRESTMapper().RESTMapping(gk, "v1alpha1"); err != nil {
+		if meta.IsNoMatchError(err) {
+			setupLog.Info("ENABLE_LLMKUBE_AUTOREGISTER is set but the inference.llmkube.dev InferenceService CRD " +
+				"is not installed; auto-registration disabled. Install LLMKube and restart the operator to enable it.")
+			return
+		}
+		setupLog.Error(err, "unable to check for LLMKube CRDs; auto-registration disabled")
+		return
+	}
+
+	if err := (&controller.LLMKubeInferenceServiceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "LLMKubeInferenceService")
+		os.Exit(1)
+	}
+	setupLog.Info("LLMKube auto-registration enabled")
 }
 
 type certRotationConfig struct {

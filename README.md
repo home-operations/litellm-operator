@@ -107,6 +107,42 @@ a parent reference. The operator self-manages the webhook serving certificate an
 patches the CA bundle into the `ValidatingWebhookConfiguration`, so there is no
 cert-manager dependency. Set `webhook.enabled=false` to turn it off.
 
+## LLMKube auto-registration
+
+The operator can mirror in-cluster models served by
+[LLMKube](https://github.com/defilantech/llmkube) into `LiteLLMModel` resources,
+so a model deployed as an LLMKube `InferenceService` shows up on the proxy
+without you writing a `LiteLLMModel` by hand. It is opt-in: set
+`ENABLE_LLMKUBE_AUTOREGISTER=1` (Helm: `llmkube.autoRegister=true`). The flag is
+the toggle; a startup discovery check is the safety net — if the
+`inference.llmkube.dev` CRDs are not installed the operator logs a warning and
+skips the feature rather than failing, so enabling it early is harmless. The
+CRDs are only required when the flag is on.
+
+When an `InferenceService` reaches `status.phase=Ready` with an endpoint, the
+operator creates a `LiteLLMModel` named after it, **in the same namespace**
+(ownership and proxy adoption both require co-location). The model is owned by the
+`InferenceService`, so Kubernetes garbage-collects it when the service is
+deleted. The projection only asserts what LLMKube can report truthfully:
+
+- `params.model` is `openai/<modelRef>` — all LLMKube runtimes serve an
+  OpenAI-compatible API, and `params.apiBase` is the service endpoint trimmed to
+  its `/v1` root;
+- `params.apiKey` is a placeholder (`sk-llmkube-noauth`) because the endpoint is
+  unauthenticated, but litellm's `openai` provider still requires a non-empty key;
+- `info.maxInputTokens` comes from the Model's parsed GGUF context length when
+  available — capability flags litellm cannot infer (function calling, vision,
+  prompt caching) are left unset rather than guessed.
+
+The generated model carries `litellm.home-operations.com/managed-by: llmkube`, so
+a proxy can target these models specifically via `modelSelector`, and the
+operator never overwrites a same-named model it does not own (it logs and skips).
+The model is removed only when the `InferenceService` reaches a terminal phase
+(`Failed`/`Stopped`); transient dips (`Progressing`, a rolling update) leave it in
+place so a routine pod rollout does not churn the proxy config. A complete
+example is in `config/samples/llmkube_autoregister.yaml`. Installing the LLMKube
+CRDs after the operator is running requires an operator restart to pick them up.
+
 ## Install
 
 ```sh

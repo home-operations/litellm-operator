@@ -65,6 +65,14 @@ webhook:
   # -- Webhook server container port.
   port: 9443
 
+llmkube:
+  # -- Auto-register LiteLLMModels from LLMKube (inference.llmkube.dev)
+  # InferenceServices. When a service reaches Ready, the operator creates a
+  # matching LiteLLMModel in the same namespace, which proxies adopt as usual.
+  # Adds RBAC for inference.llmkube.dev and sets ENABLE_LLMKUBE_AUTOREGISTER.
+  # No-op (logs a warning) if the LLMKube CRDs are not installed.
+  autoRegister: false
+
 # -- Extra environment variables for the operator container.
 env: []
 

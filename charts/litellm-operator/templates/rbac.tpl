@@ -80,6 +80,26 @@ rules:
   - get
   - list
   - watch
+{{- if .Values.llmkube.autoRegister }}
+- apiGroups:
+  - inference.llmkube.dev
+  resources:
+  - inferenceservices
+  - models
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
+  - litellmmodels
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+{{- end }}
 {{- if .Values.webhook.enabled }}
 - apiGroups:
   - ""

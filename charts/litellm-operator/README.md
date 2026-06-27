@@ -39,6 +39,7 @@ operator renders `config.yaml` into a ConfigMap, wires secret-backed API keys as
 | livenessProbe.httpGet.port | string | `"health"` |  |
 | livenessProbe.initialDelaySeconds | int | `15` |  |
 | livenessProbe.periodSeconds | int | `20` |  |
+| llmkube.autoRegister | bool | `false` | Auto-register LiteLLMModels from LLMKube (inference.llmkube.dev) InferenceServices. When a service reaches Ready, the operator creates a matching LiteLLMModel in the same namespace, which proxies adopt as usual. Adds RBAC for inference.llmkube.dev and sets ENABLE_LLMKUBE_AUTOREGISTER. No-op (logs a warning) if the LLMKube CRDs are not installed. |
 | nameOverride | string | `""` | Override the chart name used in resource names. |
 | nodeSelector | object | `{}` | Node selector. |
 | podAnnotations | object | `{}` | Pod annotations. |
