@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.0.2](https://github.com/home-operations/litellm-operator/compare/0.0.1...0.0.2) (2026-06-27)
+
+
+### Features
+
+* auto-register LiteLLMModels from LLMKube InferenceServices ([1acc9dd](https://github.com/home-operations/litellm-operator/commit/1acc9dd6836763d7cfa91be9633cee061a3e8f5b))
+* auto-register LiteLLMModels from LLMKube InferenceServices ([1f8866a](https://github.com/home-operations/litellm-operator/commit/1f8866ac072d2dfcdf0802065c95c55f14d459de))
+* **deps:** update module github.com/onsi/ginkgo/v2 (v2.28.0 → v2.32.0) ([450cb97](https://github.com/home-operations/litellm-operator/commit/450cb976e664e1fc8ef95fda3c25585055c8f563))
+* **deps:** update module github.com/onsi/ginkgo/v2 (v2.28.0 → v2.32.0) ([1938b97](https://github.com/home-operations/litellm-operator/commit/1938b971a7c48735cc3cb40d064b883aa9e6d80e))
+* **deps:** update module github.com/onsi/gomega (v1.39.1 → v1.42.1) ([579d790](https://github.com/home-operations/litellm-operator/commit/579d790a17db3fab4f1b3c664892ec9624f30e21))
+
+
+### Bug Fixes
+
+* **ci:** recreate kind cluster before e2e to avoid stale node state ([f33a8fa](https://github.com/home-operations/litellm-operator/commit/f33a8fa88ba91f46a7b5f6b485843f0af9ce1ce8))
+
+
+### Miscellaneous Chores
+
+* add minimumGroupSize to Go toolchain configuration ([fd6e38b](https://github.com/home-operations/litellm-operator/commit/fd6e38bb95ccdd0063d7235100b9cc3ba8c41283))
+* **mise:** Update tool jq (1.8.1 → 1.8.2) ([4714857](https://github.com/home-operations/litellm-operator/commit/47148570ee35160a3b8b12afa7f71753f654e641))
+* **mise:** Update tool oxfmt (0.55.0 → 0.56.0) ([98ee03f](https://github.com/home-operations/litellm-operator/commit/98ee03f36930a58ce070a6b378e906e708276032))
+
 ## 0.0.1 (2026-06-24)
 
 
