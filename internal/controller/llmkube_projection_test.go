@@ -78,6 +78,50 @@ func TestProjectInferenceService_GGUFWithoutContextOmitsInfo(t *testing.T) {
 	assert.Nil(t, got.Spec.Info)
 }
 
+func TestLLMKubeModelMode(t *testing.T) {
+	withArgs := func(args ...string) *inferencev1alpha1.InferenceService {
+		isvc := &inferencev1alpha1.InferenceService{}
+		isvc.Spec.ExtraArgs = args
+		return isvc
+	}
+
+	t.Run("chat model has no mode", func(t *testing.T) {
+		assert.Equal(t, "", llmkubeModelMode(&inferencev1alpha1.InferenceService{}))
+	})
+	t.Run("embedding from --embedding flag", func(t *testing.T) {
+		assert.Equal(t, "embedding", llmkubeModelMode(withArgs("--embedding", "--pooling", "last")))
+	})
+	t.Run("rerank wins over --embedding when both are present", func(t *testing.T) {
+		assert.Equal(t, "rerank", llmkubeModelMode(withArgs("--reranking", "--pooling", "rank", "--embedding")))
+	})
+	t.Run("inferred from Args (generic runtime)", func(t *testing.T) {
+		isvc := &inferencev1alpha1.InferenceService{}
+		isvc.Spec.Args = []string{"--embeddings"}
+		assert.Equal(t, "embedding", llmkubeModelMode(isvc))
+	})
+	t.Run("inferred from endpoint path", func(t *testing.T) {
+		isvc := &inferencev1alpha1.InferenceService{}
+		isvc.Spec.Endpoint = &inferencev1alpha1.EndpointSpec{Path: "/v1/rerank"}
+		assert.Equal(t, "rerank", llmkubeModelMode(isvc))
+	})
+	t.Run("annotation overrides the heuristic", func(t *testing.T) {
+		isvc := withArgs("--embedding")
+		isvc.Annotations = map[string]string{llmkubeModeAnnotation: "rerank"}
+		assert.Equal(t, "rerank", llmkubeModelMode(isvc))
+	})
+}
+
+func TestProjectInferenceService_EmbeddingMode(t *testing.T) {
+	isvc := readyISVC("embed", "embed-ref", chatEndpoint)
+	isvc.Spec.ExtraArgs = []string{"--embedding", "--pooling", "last"}
+
+	got := projectInferenceService(isvc, nil)
+
+	require.NotNil(t, got.Spec.Info)
+	assert.Equal(t, "embedding", got.Spec.Info.Mode)
+	assert.Nil(t, got.Spec.Info.MaxInputTokens, "no Model means no context length, but mode still sets info")
+}
+
 func TestLLMKubeAPIBase(t *testing.T) {
 	tests := []struct {
 		name     string
