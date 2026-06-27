@@ -132,7 +132,14 @@ deleted. The projection only asserts what LLMKube can report truthfully:
   unauthenticated, but litellm's `openai` provider still requires a non-empty key;
 - `info.maxInputTokens` comes from the Model's parsed GGUF context length when
   available — capability flags litellm cannot infer (function calling, vision,
-  prompt caching) are left unset rather than guessed.
+  prompt caching) are left unset rather than guessed;
+- `info.mode` is set for embedding and reranker models. LLMKube has no task-type
+  field, so the mode is inferred from the runtime flags you already set
+  (`--reranking` → `rerank`, `--embedding` → `embedding`; rerank wins when both
+  are present, as llama.cpp rerankers pass both), falling back to the endpoint
+  path (`/v1/rerank`, `/v1/embeddings`). Override it explicitly with the
+  `litellm.home-operations.com/mode` annotation on the InferenceService when the
+  heuristic can't tell (e.g. a generic runtime). Plain chat models get no mode.
 
 The generated model carries `litellm.home-operations.com/managed-by: llmkube`, so
 a proxy can target these models specifically via `modelSelector`, and the

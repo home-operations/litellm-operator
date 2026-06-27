@@ -17,6 +17,7 @@ import (
 var _ = Describe("LLMKube auto-registration", func() {
 	const (
 		ns           = "default"
+		readyPhase   = "Ready"
 		managedLabel = "litellm.home-operations.com/managed-by"
 	)
 
@@ -28,7 +29,7 @@ var _ = Describe("LLMKube auto-registration", func() {
 			Spec:       inferencev1alpha1.ModelSpec{Source: "https://example.com/m.gguf"},
 		}
 		Expect(k8sClient.Create(ctx, model)).To(Succeed())
-		model.Status.Phase = "Ready"
+		model.Status.Phase = readyPhase
 		model.Status.GGUF = &inferencev1alpha1.GGUFMetadata{ContextLength: ctxLen}
 		Expect(k8sClient.Status().Update(ctx, model)).To(Succeed())
 
@@ -37,7 +38,7 @@ var _ = Describe("LLMKube auto-registration", func() {
 			Spec:       inferencev1alpha1.InferenceServiceSpec{ModelRef: modelRef},
 		}
 		Expect(k8sClient.Create(ctx, isvc)).To(Succeed())
-		isvc.Status.Phase = "Ready"
+		isvc.Status.Phase = readyPhase
 		isvc.Status.Endpoint = "http://" + name + "." + ns + ".svc.cluster.local:8080/v1/chat/completions"
 		Expect(k8sClient.Status().Update(ctx, isvc)).To(Succeed())
 	}
@@ -74,6 +75,33 @@ var _ = Describe("LLMKube auto-registration", func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "llmkube-proxy-config", Namespace: ns}, &cm)).To(Succeed())
 			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("openai/llama3-8b"))
 			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("llama3.default.svc.cluster.local:8080/v1"))
+		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
+	})
+
+	It("sets model_info.mode from the runtime flags of an embedding service", func() {
+		model := &inferencev1alpha1.Model{
+			ObjectMeta: metav1.ObjectMeta{Name: "embed-model", Namespace: ns},
+			Spec:       inferencev1alpha1.ModelSpec{Source: "https://example.com/e.gguf"},
+		}
+		Expect(k8sClient.Create(ctx, model)).To(Succeed())
+
+		isvc := &inferencev1alpha1.InferenceService{
+			ObjectMeta: metav1.ObjectMeta{Name: "embedder", Namespace: ns},
+			Spec: inferencev1alpha1.InferenceServiceSpec{
+				ModelRef:  "embed-model",
+				ExtraArgs: []string{"--embedding", "--pooling", "last"},
+			},
+		}
+		Expect(k8sClient.Create(ctx, isvc)).To(Succeed())
+		isvc.Status.Phase = readyPhase
+		isvc.Status.Endpoint = "http://embedder." + ns + ".svc.cluster.local:8080/v1/chat/completions"
+		Expect(k8sClient.Status().Update(ctx, isvc)).To(Succeed())
+
+		Eventually(func(g Gomega) {
+			var got litellmv1alpha1.LiteLLMModel
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "embedder", Namespace: ns}, &got)).To(Succeed())
+			g.Expect(got.Spec.Info).NotTo(BeNil())
+			g.Expect(got.Spec.Info.Mode).To(Equal("embedding"))
 		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
 	})
 
