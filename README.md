@@ -71,7 +71,13 @@ fronting the proxy Service; the Gateway API CRDs are only required if you use it
 Guardrails and MCP servers are their own CRDs — `LiteLLMGuardrail` and
 `LiteLLMMCPServer` — adopted by a proxy the same way models are (proxyRef,
 selector, or namespace default) and rendered into the proxy's `guardrails` list
-and `mcp_servers` map, with the same `apiKeyRef`/`authTokenRef` secret wiring.
+and `mcp_servers` map, with the same `apiKeyRef`/`authTokenRef` secret wiring. A
+`LiteLLMMCPServer` either points the gateway at an external `spec.url`, or sets
+`spec.workload` (image, port, env, volumes, ...) to have the operator run the
+server itself as a Deployment + Service and derive the url from it
+(`http://<name>.<namespace>.svc.cluster.local:<port><path>`, surfaced in
+`status.resolvedURL`). A validating webhook enforces that exactly one of `url`
+or `workload` is set.
 Callbacks are a typed proxy field (`spec.callbacks` → `success_callback`,
 `failure_callback`, `callbacks`, and the top-level `callback_settings`). Every
 other top-level litellm config key has a named field on the proxy

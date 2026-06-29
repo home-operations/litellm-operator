@@ -23,6 +23,8 @@ const (
 	proxyPort       = 4000
 	httpPortName    = "http"
 
+	conditionTypeReady = "Ready"
+
 	keyModel         = "model"
 	keyModelName     = "model_name"
 	keyLitellmParams = "litellm_params"
@@ -288,11 +290,15 @@ func renderMCPServers(servers []litellmv1alpha1.LiteLLMMCPServer, env *envAccumu
 		if entry == nil {
 			entry = map[string]any{}
 		}
-		if s.Spec.URL != "" {
-			entry["url"] = s.Spec.URL
+		if url := s.ResolvedServerURL(); url != "" {
+			entry["url"] = url
 		}
-		if s.Spec.Transport != "" {
-			entry["transport"] = s.Spec.Transport
+		transport := s.Spec.Transport
+		if transport == "" && s.Spec.Workload != nil {
+			transport = "http"
+		}
+		if transport != "" {
+			entry["transport"] = transport
 		}
 		if s.Spec.AuthType != "" {
 			entry["auth_type"] = s.Spec.AuthType

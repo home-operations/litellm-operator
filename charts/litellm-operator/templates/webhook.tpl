@@ -66,6 +66,26 @@ webhooks:
           - UPDATE
         resources:
           - litellmguardrails
+  - name: vlitellmmcpserver.kb.io
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ include "litellm-operator.webhookServiceName" . }}
+        namespace: {{ .Release.Namespace }}
+        path: /validate-litellm-home-operations-com-v1alpha1-litellmmcpserver
+    failurePolicy: Fail
+    sideEffects: None
+    rules:
+      - apiGroups:
+          - litellm.home-operations.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - litellmmcpservers
 ---
 apiVersion: v1
 kind: Service
