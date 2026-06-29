@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.0.4](https://github.com/home-operations/litellm-operator/compare/0.0.3...0.0.4) (2026-06-29)
+
+
+### Features
+
+* run MCP server workloads from LiteLLMMCPServer ([#19](https://github.com/home-operations/litellm-operator/issues/19)) ([2642815](https://github.com/home-operations/litellm-operator/commit/2642815457c39da5630e770f2b0a98370f1ee8c9))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.8.19 → v0.8.20) ([#16](https://github.com/home-operations/litellm-operator/issues/16)) ([4e35963](https://github.com/home-operations/litellm-operator/commit/4e35963087de68c06b37aa653c2ad0f2165536b4))
+
+
+### Miscellaneous Chores
+
+* **renovate:** inherit shared toolchain + chart-docs presets ([#14](https://github.com/home-operations/litellm-operator/issues/14)) ([3490ae4](https://github.com/home-operations/litellm-operator/commit/3490ae44cc1d27794fbaf238cefea0d9874532a0))
+
 ## [0.0.3](https://github.com/home-operations/litellm-operator/compare/0.0.2...0.0.3) (2026-06-27)
 
 
