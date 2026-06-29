@@ -1,11 +1,68 @@
 package v1alpha1
 
 import (
+	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const mcpTokenEnvPrefix = "LITELLM_MCPTOKEN_"
+const (
+	mcpTokenEnvPrefix = "LITELLM_MCPTOKEN_"
+
+	defaultMCPWorkloadPort int32 = 8080
+	defaultMCPWorkloadPath       = "/mcp"
+)
+
+// MCPWorkloadSpec makes the operator run the MCP server as a Deployment +
+// Service and derive its url from that Service.
+type MCPWorkloadSpec struct {
+	// Image is the container image.
+	// +kubebuilder:validation:Required
+	Image string `json:"image"`
+
+	// Replicas of the Deployment. Defaults to 1.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Command overrides the image entrypoint.
+	// +optional
+	Command []string `json:"command,omitempty"`
+
+	// Args passed to the container.
+	// +optional
+	Args []string `json:"args,omitempty"`
+
+	// Port the server listens on; also the Service port and the derived-url
+	// port. Defaults to 8080.
+	// +optional
+	Port int32 `json:"port,omitempty"`
+
+	// Path appended to the derived url. Defaults to "/mcp".
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// Env for the container; supports valueFrom for secret-backed values.
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// EnvFrom sources for the container.
+	// +optional
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
+
+	// Resources for the container.
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// VolumeMounts for the container.
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Volumes for the pod.
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+}
 
 // LiteLLMMCPServerSpec defines a single config.yaml mcp_servers entry.
 type LiteLLMMCPServerSpec struct {
@@ -19,11 +76,11 @@ type LiteLLMMCPServerSpec struct {
 	// +optional
 	ProxyRef string `json:"proxyRef,omitempty"`
 
-	// URL of the MCP server.
+	// URL of an external MCP server. Mutually exclusive with workload.
 	// +optional
 	URL string `json:"url,omitempty"`
 
-	// Transport the server speaks.
+	// Transport the server speaks. Defaults to http when a workload is set.
 	// +kubebuilder:validation:Enum=sse;http;stdio
 	// +optional
 	Transport string `json:"transport,omitempty"`
@@ -36,6 +93,11 @@ type LiteLLMMCPServerSpec struct {
 	// +optional
 	AuthTokenRef *SecretKeyRef `json:"authTokenRef,omitempty"`
 
+	// Workload, when set, makes the operator run this MCP server as a Deployment
+	// + Service and derive the url from it. Mutually exclusive with url.
+	// +optional
+	Workload *MCPWorkloadSpec `json:"workload,omitempty"`
+
 	// Params holds any further mcp_servers fields (extra_headers, allowed_tools,
 	// oauth/aws/stdio settings, ...), merged under the typed fields.
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -46,6 +108,11 @@ type LiteLLMMCPServerSpec struct {
 
 // LiteLLMMCPServerStatus reports the observed state of the MCP server.
 type LiteLLMMCPServerStatus struct {
+	// ResolvedURL is the url the gateway uses to reach this server: the derived
+	// workload url, or spec.url.
+	// +optional
+	ResolvedURL string `json:"resolvedURL,omitempty"`
+
 	// +optional
 	// +listType=map
 	// +listMapKey=type
@@ -55,7 +122,7 @@ type LiteLLMMCPServerStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=llmcp
-// +kubebuilder:printcolumn:name="URL",type=string,JSONPath=`.spec.url`
+// +kubebuilder:printcolumn:name="URL",type=string,JSONPath=`.status.resolvedURL`
 // +kubebuilder:printcolumn:name="Transport",type=string,JSONPath=`.spec.transport`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
@@ -79,6 +146,36 @@ func (s *LiteLLMMCPServer) ServerAlias() string {
 // AuthTokenEnvVarName is the env var carrying this server's secret-backed auth token.
 func (s *LiteLLMMCPServer) AuthTokenEnvVarName() string {
 	return mcpTokenEnvPrefix + sanitizeEnvVar(s.Name)
+}
+
+// WorkloadPort returns the configured workload port or the default.
+func (s *LiteLLMMCPServer) WorkloadPort() int32 {
+	if s.Spec.Workload != nil && s.Spec.Workload.Port != 0 {
+		return s.Spec.Workload.Port
+	}
+	return defaultMCPWorkloadPort
+}
+
+// WorkloadPath returns the configured derived-url path or the default.
+func (s *LiteLLMMCPServer) WorkloadPath() string {
+	if s.Spec.Workload != nil && s.Spec.Workload.Path != "" {
+		return s.Spec.Workload.Path
+	}
+	return defaultMCPWorkloadPath
+}
+
+// WorkloadURL is the in-cluster url of the Service the operator runs for this
+// server's workload.
+func (s *LiteLLMMCPServer) WorkloadURL() string {
+	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d%s", s.Name, s.Namespace, s.WorkloadPort(), s.WorkloadPath())
+}
+
+// ResolvedServerURL is the url the gateway uses to reach this server.
+func (s *LiteLLMMCPServer) ResolvedServerURL() string {
+	if s.Spec.Workload != nil {
+		return s.WorkloadURL()
+	}
+	return s.Spec.URL
 }
 
 // +kubebuilder:object:root=true

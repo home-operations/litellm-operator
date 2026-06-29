@@ -93,6 +93,11 @@ var _ = BeforeSuite(func() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)).To(Succeed())
 
+	Expect((&controller.LiteLLMMCPServerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr)).To(Succeed())
+
 	Expect((&controller.LLMKubeInferenceServiceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -114,6 +119,7 @@ var _ = Describe("LiteLLMProxy reconciliation", func() {
 		ns         = "default"
 		proxyName  = "main"
 		proxyLabel = "proxy"
+		mcpName    = "grafana"
 	)
 
 	It("renders matching models into a ConfigMap and rolls the Deployment", func() {
@@ -198,6 +204,43 @@ var _ = Describe("LiteLLMProxy reconciliation", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: proxyName, Namespace: ns}, &deploy)).To(Succeed())
 			g.Expect(deploy.Spec.Template.Annotations["litellm.home-operations.com/config-hash"]).NotTo(Equal(hashBefore))
+		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
+	})
+
+	It("runs a workload-backed MCP server and renders its derived url", func() {
+		mcp := &litellmv1alpha1.LiteLLMMCPServer{
+			ObjectMeta: metav1.ObjectMeta{Name: mcpName, Namespace: ns, Labels: map[string]string{proxyLabel: proxyName}},
+			Spec: litellmv1alpha1.LiteLLMMCPServerSpec{
+				Workload: &litellmv1alpha1.MCPWorkloadSpec{Image: "mcp/grafana:latest", Port: 8000},
+			},
+		}
+		Expect(k8sClient.Create(ctx, mcp)).To(Succeed())
+
+		By("creating an owned Deployment and Service for the workload")
+		Eventually(func(g Gomega) {
+			var deploy appsv1.Deployment
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: mcpName, Namespace: ns}, &deploy)).To(Succeed())
+			g.Expect(deploy.Spec.Template.Spec.Containers[0].Image).To(Equal("mcp/grafana:latest"))
+			g.Expect(deploy.OwnerReferences).To(HaveLen(1))
+			g.Expect(deploy.OwnerReferences[0].Kind).To(Equal("LiteLLMMCPServer"))
+
+			var svc corev1.Service
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: mcpName, Namespace: ns}, &svc)).To(Succeed())
+			g.Expect(svc.Spec.Ports[0].Port).To(Equal(int32(8000)))
+		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
+
+		By("recording the derived url in status")
+		Eventually(func(g Gomega) {
+			var got litellmv1alpha1.LiteLLMMCPServer
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: mcpName, Namespace: ns}, &got)).To(Succeed())
+			g.Expect(got.Status.ResolvedURL).To(Equal("http://grafana.default.svc.cluster.local:8000/mcp"))
+		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
+
+		By("rendering the derived url into the proxy mcp_servers")
+		Eventually(func(g Gomega) {
+			var cm corev1.ConfigMap
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: proxyName + "-config", Namespace: ns}, &cm)).To(Succeed())
+			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("http://grafana.default.svc.cluster.local:8000/mcp"))
 		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
 	})
 })

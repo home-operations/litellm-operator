@@ -74,3 +74,23 @@ spec:
   authTokenRef:
     name: litellm-secrets
     key: GITHUB_MCP_PAT
+---
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMMCPServer
+metadata:
+  name: grafana
+  namespace: ai
+spec:
+  # No url: the operator runs the server and derives the url from the Service.
+  workload:
+    image: mcp/grafana:latest
+    port: 8000
+    args: ["-t", "streamable-http", "--address", "0.0.0.0:8000"]
+    env:
+      - name: GRAFANA_URL
+        value: http://grafana.observability.svc.cluster.local:3000
+      - name: GRAFANA_SERVICE_ACCOUNT_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: grafana-mcp
+            key: token

@@ -265,7 +265,7 @@ func (r *LiteLLMProxyReconciler) readSecretKey(ctx context.Context, namespace st
 
 func (r *LiteLLMProxyReconciler) markReady(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, hash string, models, ready int32) error {
 	meta.SetStatusCondition(&proxy.Status.Conditions, metav1.Condition{
-		Type:               "Ready",
+		Type:               conditionTypeReady,
 		Status:             metav1.ConditionTrue,
 		Reason:             "Reconciled",
 		Message:            fmt.Sprintf("rendered %d model(s)", models),
@@ -279,7 +279,7 @@ func (r *LiteLLMProxyReconciler) markReady(ctx context.Context, proxy *litellmv1
 
 func (r *LiteLLMProxyReconciler) markFailed(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, reason, msg string) error {
 	meta.SetStatusCondition(&proxy.Status.Conditions, metav1.Condition{
-		Type:               "Ready",
+		Type:               conditionTypeReady,
 		Status:             metav1.ConditionFalse,
 		Reason:             reason,
 		Message:            msg,

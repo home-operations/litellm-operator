@@ -363,6 +363,22 @@ func TestRenderConfig_MCPServersRenderedAsMap(t *testing.T) {
 	require.Len(t, got.envVars, 1)
 }
 
+func TestRenderConfig_MCPWorkloadDerivesURLAndDefaultsTransport(t *testing.T) {
+	s := litellmv1alpha1.LiteLLMMCPServer{
+		ObjectMeta: metav1.ObjectMeta{Name: "grafana", Namespace: "ai"},
+		Spec: litellmv1alpha1.LiteLLMMCPServerSpec{
+			Workload: &litellmv1alpha1.MCPWorkloadSpec{Image: "mcp/grafana:latest", Port: 8000},
+		},
+	}
+	got, err := renderConfig(&litellmv1alpha1.LiteLLMProxy{}, nil, nil, []litellmv1alpha1.LiteLLMMCPServer{s})
+	require.NoError(t, err)
+
+	servers := parse(t, got.yaml)["mcp_servers"].(map[string]any)
+	grafana := servers["grafana"].(map[string]any)
+	assert.Equal(t, "http://grafana.ai.svc.cluster.local:8000/mcp", grafana["url"])
+	assert.Equal(t, "http", grafana["transport"]) // defaulted from workload
+}
+
 func TestRenderConfig_CallbacksMergeIntoLitellmSettingsAndCallbackSettings(t *testing.T) {
 	proxy := &litellmv1alpha1.LiteLLMProxy{
 		Spec: litellmv1alpha1.LiteLLMProxySpec{

@@ -24,6 +24,7 @@ rules:
 - apiGroups:
   - litellm.home-operations.com
   resources:
+  - litellmmcpservers/status
   - litellmproxies/status
   verbs:
   - get

@@ -32,6 +32,7 @@ import (
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 	"github.com/home-operations/litellm-operator/internal/controller"
 	guardrailwebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmguardrail"
+	mcpwebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmmcpserver"
 	modelwebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmmodel"
 	proxywebhook "github.com/home-operations/litellm-operator/internal/webhook/litellmproxy"
 	// +kubebuilder:scaffold:imports
@@ -146,6 +147,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := (&controller.LiteLLMMCPServerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "LiteLLMMCPServer")
+		os.Exit(1)
+	}
+
 	if autoRegisterEnabled() {
 		setupLLMKubeAutoRegister(mgr)
 	}
@@ -254,6 +263,10 @@ func setupCertRotationAndWebhooks(mgr ctrl.Manager, cfg certRotationConfig) {
 		}
 		if err := (&guardrailwebhook.Validator{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "LiteLLMGuardrail")
+			os.Exit(1)
+		}
+		if err := (&mcpwebhook.Validator{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "LiteLLMMCPServer")
 			os.Exit(1)
 		}
 		setupLog.Info("webhooks registered")
