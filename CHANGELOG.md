@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.0.5](https://github.com/home-operations/litellm-operator/compare/0.0.4...0.0.5) (2026-07-02)
+
+
+### Features
+
+* **deps:** update module sigs.k8s.io/gateway-api (v1.5.1 → v1.6.0) ([#20](https://github.com/home-operations/litellm-operator/issues/20)) ([09c847a](https://github.com/home-operations/litellm-operator/commit/09c847a64d28e6b63af065d3c36c30d8791e6dff))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.8.20 → v0.8.22) ([#17](https://github.com/home-operations/litellm-operator/issues/17)) ([66ef077](https://github.com/home-operations/litellm-operator/commit/66ef07717970886530b2f431e4030bc4c687f523))
+* **deps:** update module github.com/defilantech/llmkube (v0.8.22 → v0.8.26) ([#24](https://github.com/home-operations/litellm-operator/issues/24)) ([13e6f27](https://github.com/home-operations/litellm-operator/commit/13e6f275743eb92a78558587e01e83cd2f63c904))
+
+
+### Miscellaneous Chores
+
+* **mise:** Lock file maintenance tool ([#23](https://github.com/home-operations/litellm-operator/issues/23)) ([4277d86](https://github.com/home-operations/litellm-operator/commit/4277d86961c2575333c4c2c71ce710f342184abc))
+* **mise:** Update tool oxfmt (0.56.0 → 0.57.0) ([#21](https://github.com/home-operations/litellm-operator/issues/21)) ([2645f02](https://github.com/home-operations/litellm-operator/commit/2645f020f4b0ae549bc27f7c1fd92a94e32c762a))
+
 ## [0.0.4](https://github.com/home-operations/litellm-operator/compare/0.0.3...0.0.4) (2026-06-29)
 
 
