@@ -3,7 +3,7 @@ module github.com/home-operations/litellm-operator
 go 1.26.4
 
 require (
-	github.com/defilantech/llmkube v0.8.22
+	github.com/defilantech/llmkube v0.8.26
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
 	github.com/open-policy-agent/cert-controller v0.16.0
