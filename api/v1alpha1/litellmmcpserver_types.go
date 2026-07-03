@@ -26,6 +26,26 @@ type MCPWorkloadSpec struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
+	// ServiceAccountName is the pod's ServiceAccount. Set this to grant the
+	// workload the RBAC bound to that ServiceAccount. Defaults to the namespace
+	// default ServiceAccount when empty.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// AutomountServiceAccountToken controls whether the ServiceAccount token is
+	// mounted into the pod. Defaults to true (Kubernetes default).
+	// +optional
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+
+	// PodAnnotations are added to the pod template metadata.
+	// +optional
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+
+	// PodLabels are merged into the pod template labels, on top of the labels the
+	// operator manages. They cannot override the selector labels.
+	// +optional
+	PodLabels map[string]string `json:"podLabels,omitempty"`
+
 	// Command overrides the image entrypoint.
 	// +optional
 	Command []string `json:"command,omitempty"`
@@ -54,6 +74,29 @@ type MCPWorkloadSpec struct {
 	// Resources for the container.
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// SecurityContext is the container's security context (runAsNonRoot,
+	// capabilities, readOnlyRootFilesystem, ...). Required under a Pod Security
+	// "restricted" namespace.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// PodSecurityContext is the pod-level security context (runAsUser, fsGroup,
+	// seccompProfile, ...).
+	// +optional
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// NodeSelector constrains the pod to nodes with matching labels.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Tolerations allow the pod to schedule onto tainted nodes.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// Affinity constrains pod scheduling (node/pod affinity and anti-affinity).
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
 	// VolumeMounts for the container.
 	// +optional

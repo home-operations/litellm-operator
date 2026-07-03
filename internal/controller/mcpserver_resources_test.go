@@ -20,12 +20,24 @@ func mcpWorkloadServer(name string, w litellmv1alpha1.MCPWorkloadSpec) *litellmv
 
 func TestBuildMCPDeployment_CarriesWorkloadFields(t *testing.T) {
 	replicas := int32(2)
+	automount := false
+	runAsNonRoot := true
+	runAsUser := int64(1000)
 	s := mcpWorkloadServer("grafana", litellmv1alpha1.MCPWorkloadSpec{
-		Image:    "mcp/grafana:latest",
-		Replicas: &replicas,
-		Args:     []string{"-t", "streamable-http", "--address", "0.0.0.0:8000"},
-		Port:     8000,
-		Env:      []corev1.EnvVar{{Name: "GRAFANA_URL", Value: "http://grafana:3000"}},
+		Image:                        "mcp/grafana:latest",
+		Replicas:                     &replicas,
+		ServiceAccountName:           "kube-mcp",
+		AutomountServiceAccountToken: &automount,
+		Args:                         []string{"-t", "streamable-http", "--address", "0.0.0.0:8000"},
+		Port:                         8000,
+		Env:                          []corev1.EnvVar{{Name: "GRAFANA_URL", Value: "http://grafana:3000"}},
+		SecurityContext:              &corev1.SecurityContext{RunAsNonRoot: &runAsNonRoot},
+		PodSecurityContext:           &corev1.PodSecurityContext{RunAsUser: &runAsUser},
+		NodeSelector:                 map[string]string{"kubernetes.io/arch": "amd64"},
+		Tolerations:                  []corev1.Toleration{{Key: "dedicated", Operator: corev1.TolerationOpExists}},
+		Affinity:                     &corev1.Affinity{},
+		PodAnnotations:               map[string]string{"prometheus.io/scrape": "true"},
+		PodLabels:                    map[string]string{"team": "ai"},
 	})
 
 	deploy := buildMCPDeployment(s)
@@ -34,16 +46,45 @@ func TestBuildMCPDeployment_CarriesWorkloadFields(t *testing.T) {
 	require.NotNil(t, deploy.Spec.Replicas)
 	assert.Equal(t, int32(2), *deploy.Spec.Replicas)
 
-	c := deploy.Spec.Template.Spec.Containers[0]
+	pod := deploy.Spec.Template.Spec
+	assert.Equal(t, "kube-mcp", pod.ServiceAccountName)
+	require.NotNil(t, pod.AutomountServiceAccountToken)
+	assert.False(t, *pod.AutomountServiceAccountToken)
+	assert.Equal(t, &corev1.PodSecurityContext{RunAsUser: &runAsUser}, pod.SecurityContext)
+	assert.Equal(t, map[string]string{"kubernetes.io/arch": "amd64"}, pod.NodeSelector)
+	require.Len(t, pod.Tolerations, 1)
+	assert.Equal(t, "dedicated", pod.Tolerations[0].Key)
+	assert.NotNil(t, pod.Affinity)
+
+	c := pod.Containers[0]
 	assert.Equal(t, mcpContainer, c.Name)
 	assert.Equal(t, "mcp/grafana:latest", c.Image)
 	assert.Equal(t, []string{"-t", "streamable-http", "--address", "0.0.0.0:8000"}, c.Args)
 	require.Len(t, c.Ports, 1)
 	assert.Equal(t, int32(8000), c.Ports[0].ContainerPort)
 	assert.Equal(t, "GRAFANA_URL", c.Env[0].Name)
+	assert.Equal(t, &corev1.SecurityContext{RunAsNonRoot: &runAsNonRoot}, c.SecurityContext)
 
-	// Selector and pod template labels must match so the Service finds the pod.
-	assert.Equal(t, deploy.Spec.Selector.MatchLabels, deploy.Spec.Template.Labels)
+	// Pod annotations pass through; pod labels merge under (never override) the
+	// selector labels so the Service keeps matching the pod.
+	assert.Equal(t, map[string]string{"prometheus.io/scrape": "true"}, deploy.Spec.Template.Annotations)
+	assert.Equal(t, "ai", deploy.Spec.Template.Labels["team"])
+	for k, v := range deploy.Spec.Selector.MatchLabels {
+		assert.Equal(t, v, deploy.Spec.Template.Labels[k])
+	}
+}
+
+func TestBuildMCPDeployment_PodLabelsCannotOverrideSelector(t *testing.T) {
+	s := mcpWorkloadServer("grafana", litellmv1alpha1.MCPWorkloadSpec{Image: "img:latest"})
+	selectorKey := ""
+	for k := range mcpSelectorLabels(s) {
+		selectorKey = k
+		break
+	}
+	s.Spec.Workload.PodLabels = map[string]string{selectorKey: "hijacked"}
+
+	deploy := buildMCPDeployment(s)
+	assert.Equal(t, mcpSelectorLabels(s)[selectorKey], deploy.Spec.Template.Labels[selectorKey])
 }
 
 func TestBuildMCPService_TargetsWorkloadPort(t *testing.T) {
