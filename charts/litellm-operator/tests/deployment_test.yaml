@@ -34,19 +34,20 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --leader-elect=true
 
-  - it: disables metrics by default
+  - it: serves metrics and probes on the single operational port
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --metrics-bind-address=0
-
-  - it: exposes the metrics port when metrics are enabled
-    set:
-      controller.metrics.enabled: true
-    asserts:
+          content: --metrics-bind-address=:8081
       - contains:
           path: spec.template.spec.containers[0].ports
           content:
             name: metrics
-            containerPort: 8443
+            containerPort: 8081
             protocol: TCP
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: metrics
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: metrics
