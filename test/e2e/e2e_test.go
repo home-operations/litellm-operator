@@ -22,8 +22,17 @@ var _ = Describe("operational port", func() {
 		defer func() {
 			_, _ = kubectl("delete", "pod", "curl-metrics", "-n", namespace, "--ignore-not-found")
 		}()
-		out, err = kubectl("run", "curl-metrics", "-n", namespace, "--rm", "-i", "--restart=Never",
+		// Run detached and read the logs afterwards: `kubectl run -i --rm` can miss
+		// the pod's output when the command finishes before attach connects.
+		_, err = kubectl("run", "curl-metrics", "-n", namespace, "--restart=Never",
 			"--image=curlimages/curl:latest", "--", "sh", "-c", script)
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func(g Gomega) {
+			phase, err := kubectl("get", "pod", "curl-metrics", "-n", namespace, "-o", "jsonpath={.status.phase}")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(phase).To(Equal("Succeeded"))
+		}, 2*time.Minute, 5*time.Second).Should(Succeed())
+		out, err = kubectl("logs", "curl-metrics", "-n", namespace)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(out).To(ContainSubstring("go_goroutines"))
 	})
@@ -36,7 +45,11 @@ var _ = Describe("litellm-operator e2e", Ordered, func() {
 	})
 
 	It("rejects a LiteLLMModel that sets both apiKey and apiKeyRef via the webhook", func() {
-		out, err := kubectlApply(`
+		// Retried: right after helm --wait the pod is Ready but the apiserver's
+		// route to the webhook Service can lag (kind), yielding an InternalError
+		// "connection refused" instead of the denial.
+		Eventually(func(g Gomega) {
+			out, err := kubectlApply(`
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
@@ -51,8 +64,9 @@ spec:
       name: s
       key: k
 `)
-		Expect(err).To(HaveOccurred())
-		Expect(out).To(ContainSubstring("mutually exclusive"))
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(out).To(ContainSubstring("mutually exclusive"))
+		}, time.Minute, 2*time.Second).Should(Succeed())
 	})
 
 	It("reconciles a proxy and its model into a ConfigMap and Deployment", func() {
