@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.6](https://github.com/home-operations/litellm-operator/compare/0.0.5...0.0.6) (2026-07-04)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.8.26 → v0.8.28) ([#26](https://github.com/home-operations/litellm-operator/issues/26)) ([ef408c4](https://github.com/home-operations/litellm-operator/commit/ef408c478a772e26d171dea5c56deadaaca722a3))
+* **llmkube:** trim embedding/rerank endpoint suffixes in api_base ([#28](https://github.com/home-operations/litellm-operator/issues/28)) ([bca6515](https://github.com/home-operations/litellm-operator/commit/bca6515ff6843e98e09ebaea3e25b7fb496ef3d5))
+
 ## [0.0.5](https://github.com/home-operations/litellm-operator/compare/0.0.4...0.0.5) (2026-07-03)
 
 
