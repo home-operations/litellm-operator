@@ -9,7 +9,10 @@ import (
 	inferencev1alpha1 "github.com/defilantech/llmkube/api/v1alpha1"
 )
 
-const chatEndpoint = "http://h:8080/v1/chat/completions"
+const (
+	chatEndpoint   = "http://h:8080/v1/chat/completions"
+	trimmedAPIBase = "http://h:8080/v1"
+)
 
 func readyISVC(name, modelRef, endpoint string) *inferencev1alpha1.InferenceService {
 	isvc := &inferencev1alpha1.InferenceService{}
@@ -112,7 +115,9 @@ func TestLLMKubeModelMode(t *testing.T) {
 }
 
 func TestProjectInferenceService_EmbeddingMode(t *testing.T) {
-	isvc := readyISVC("embed", "embed-ref", chatEndpoint)
+	// LLMKube reports the endpoint at the operation-specific path for
+	// embedding services, not the chat-completions default.
+	isvc := readyISVC("embed", "embed-ref", "http://embed.ai.svc.cluster.local:8080/v1/embeddings")
 	isvc.Spec.ExtraArgs = []string{"--embedding", "--pooling", "last"}
 
 	got := projectInferenceService(isvc, nil)
@@ -120,6 +125,8 @@ func TestProjectInferenceService_EmbeddingMode(t *testing.T) {
 	require.NotNil(t, got.Spec.Info)
 	assert.Equal(t, "embedding", got.Spec.Info.Mode)
 	assert.Nil(t, got.Spec.Info.MaxInputTokens, "no Model means no context length, but mode still sets info")
+	assert.Equal(t, "http://embed.ai.svc.cluster.local:8080/v1", got.Spec.Params.APIBase,
+		"the /embeddings suffix must be trimmed too, or litellm double-appends it")
 }
 
 func TestLLMKubeAPIBase(t *testing.T) {
@@ -128,7 +135,9 @@ func TestLLMKubeAPIBase(t *testing.T) {
 		endpoint string
 		want     string
 	}{
-		{"standard chat path", chatEndpoint, "http://h:8080/v1"},
+		{"standard chat path", chatEndpoint, trimmedAPIBase},
+		{"embedding path", "http://h:8080/v1/embeddings", trimmedAPIBase},
+		{"rerank path", "http://h:8080/v1/rerank", trimmedAPIBase},
 		{"non-standard path passes through", "http://h:8080/custom", "http://h:8080/custom"},
 		{"empty endpoint", "", ""},
 	}

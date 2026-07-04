@@ -37,8 +37,15 @@ const (
 
 	openAICompatPrefix    = "openai/"
 	chatCompletionsSuffix = "/chat/completions"
+	embeddingsSuffix      = "/embeddings"
+	rerankSuffix          = "/rerank"
 	inferenceReadyPhase   = "Ready"
 )
+
+// llmkubeOperationSuffixes are the endpoint paths LLMKube reports per serving
+// mode (see InferenceServiceSpec.Mode); litellm's openai-compatible provider
+// appends the matching one itself, so each must be trimmed from api_base.
+var llmkubeOperationSuffixes = []string{chatCompletionsSuffix, embeddingsSuffix, rerankSuffix}
 
 // projectInferenceService renders the LiteLLMModel that mirrors a Ready LLMKube
 // InferenceService. It is a pure function: no client calls, no ownership wiring
@@ -114,12 +121,18 @@ func llmkubeModelMode(isvc *inferencev1alpha1.InferenceService) string {
 }
 
 // llmkubeAPIBase turns an InferenceService status endpoint into a litellm
-// api_base. LLMKube reports the full chat URL (…/v1/chat/completions); litellm's
-// openai provider wants the server root (…/v1) and appends /chat/completions
-// itself, so the suffix is trimmed. A non-standard path is passed through
-// unchanged.
+// api_base. LLMKube reports the full operation URL (…/v1/chat/completions,
+// …/v1/embeddings, or …/v1/rerank depending on serving mode); litellm's openai
+// provider wants the server root (…/v1) and appends the operation path itself,
+// so whichever suffix matches is trimmed. A non-standard path is passed
+// through unchanged.
 func llmkubeAPIBase(endpoint string) string {
-	return strings.TrimSuffix(endpoint, chatCompletionsSuffix)
+	for _, suffix := range llmkubeOperationSuffixes {
+		if trimmed := strings.TrimSuffix(endpoint, suffix); trimmed != endpoint {
+			return trimmed
+		}
+	}
+	return endpoint
 }
 
 // projectModelInfo fills only the capability fields LLMKube can report
