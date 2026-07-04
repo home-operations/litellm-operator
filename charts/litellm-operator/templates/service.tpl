@@ -1,4 +1,4 @@
-{{- if .Values.controller.metrics.enabled }}
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -19,4 +19,3 @@ spec:
       name: metrics
   selector:
     {{- include "litellm-operator.selectorLabels" . | nindent 4 }}
-{{- end }}

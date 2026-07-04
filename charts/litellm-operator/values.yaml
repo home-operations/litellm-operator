@@ -45,17 +45,11 @@ controller:
     # -- Enable leader election so only one replica reconciles at a time.
     enabled: true
   metrics:
-    # -- Expose the controller-runtime metrics endpoint.
-    enabled: false
-    # -- Serve metrics over HTTPS with authn/authz.
-    secure: true
-    # -- Metrics port.
-    port: 8443
+    # -- Operational port: /metrics plus the /healthz and /readyz probes (plain HTTP;
+    # restrict with a NetworkPolicy if needed).
+    port: 8081
     # -- Annotations for the metrics Service.
     annotations: {}
-  health:
-    # -- Health/readiness probe port.
-    port: 8081
 
 webhook:
   # -- Enable the validating admission webhook. The operator self-manages the
@@ -106,14 +100,14 @@ resources:
 livenessProbe:
   httpGet:
     path: /healthz
-    port: health
+    port: metrics
   initialDelaySeconds: 15
   periodSeconds: 20
 
 readinessProbe:
   httpGet:
     path: /readyz
-    port: health
+    port: metrics
   initialDelaySeconds: 5
   periodSeconds: 10
 

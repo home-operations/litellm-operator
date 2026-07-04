@@ -45,13 +45,7 @@ spec:
           args:
             - --log-level={{ .Values.controller.logLevel }}
             - --leader-elect={{ .Values.controller.leaderElection.enabled }}
-            - --health-probe-bind-address=:{{ .Values.controller.health.port }}
-            {{- if .Values.controller.metrics.enabled }}
             - --metrics-bind-address=:{{ .Values.controller.metrics.port }}
-            - --metrics-secure={{ .Values.controller.metrics.secure }}
-            {{- else }}
-            - --metrics-bind-address=0
-            {{- end }}
             {{- if .Values.webhook.enabled }}
             - --webhook-config-name={{ include "litellm-operator.webhookConfigName" . }}
             - --webhook-service-name={{ include "litellm-operator.webhookServiceName" . }}
@@ -70,14 +64,11 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           ports:
-            - name: health
-              containerPort: {{ .Values.controller.health.port }}
-              protocol: TCP
-            {{- if .Values.controller.metrics.enabled }}
+            # Serves /metrics plus the /healthz and /readyz probes (single
+            # operational port; see cmd/main.go).
             - name: metrics
               containerPort: {{ .Values.controller.metrics.port }}
               protocol: TCP
-            {{- end }}
             {{- if .Values.webhook.enabled }}
             - name: webhook
               containerPort: {{ .Values.webhook.port }}

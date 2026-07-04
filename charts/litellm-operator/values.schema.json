@@ -9,19 +9,6 @@
     },
     "controller": {
       "properties": {
-        "health": {
-          "properties": {
-            "port": {
-              "default": 8081,
-              "description": "Health/readiness probe port.",
-              "title": "port",
-              "type": "integer"
-            }
-          },
-          "required": [],
-          "title": "health",
-          "type": "object"
-        },
         "leaderElection": {
           "properties": {
             "enabled": {
@@ -49,23 +36,11 @@
               "title": "annotations",
               "type": "object"
             },
-            "enabled": {
-              "default": false,
-              "description": "Expose the controller-runtime metrics endpoint.",
-              "title": "enabled",
-              "type": "boolean"
-            },
             "port": {
-              "default": 8443,
-              "description": "Metrics port.",
+              "default": 8081,
+              "description": "Operational port: /metrics plus the /healthz and /readyz probes (plain HTTP;\nrestrict with a NetworkPolicy if needed).",
               "title": "port",
               "type": "integer"
-            },
-            "secure": {
-              "default": true,
-              "description": "Serve metrics over HTTPS with authn/authz.",
-              "title": "secure",
-              "type": "boolean"
             }
           },
           "required": [],
@@ -146,7 +121,7 @@
               "type": "string"
             },
             "port": {
-              "default": "health",
+              "default": "metrics",
               "title": "port",
               "type": "string"
             }
@@ -267,7 +242,7 @@
               "type": "string"
             },
             "port": {
-              "default": "health",
+              "default": "metrics",
               "title": "port",
               "type": "string"
             }

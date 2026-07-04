@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -8,6 +9,25 @@ import (
 )
 
 const testNS = "default"
+
+var _ = Describe("operational port", func() {
+	It("serves metrics and health probes on the single operational port", func() {
+		out, err := kubectl("get", "service", release+"-metrics", "-n", namespace,
+			"-o", "jsonpath={.spec.ports[0].port}")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(out).To(Equal("8081"))
+
+		base := fmt.Sprintf("http://%s-metrics.%s.svc:8081", release, namespace)
+		script := fmt.Sprintf("curl -fsS %s/healthz && curl -fsS %s/readyz && curl -fsS %s/metrics", base, base, base)
+		defer func() {
+			_, _ = kubectl("delete", "pod", "curl-metrics", "-n", namespace, "--ignore-not-found")
+		}()
+		out, err = kubectl("run", "curl-metrics", "-n", namespace, "--rm", "-i", "--restart=Never",
+			"--image=curlimages/curl:latest", "--", "sh", "-c", script)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(out).To(ContainSubstring("go_goroutines"))
+	})
+})
 
 var _ = Describe("litellm-operator e2e", Ordered, func() {
 	AfterAll(func() {

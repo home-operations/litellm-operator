@@ -23,7 +23,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -61,24 +60,18 @@ func init() {
 //nolint:gocyclo
 func main() {
 	var metricsAddr string
-	var probeAddr string
 	var enableLeaderElection bool
-	var secureMetrics bool
 	var enableHTTP2 bool
 	var logLevel string
 	var webhookConfigName, webhookServiceName, webhookSecretName string
 
-	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
-		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service. "+
-		"When metrics are served over plain HTTP (--metrics-secure=false), the health/readiness "+
-		"probes are co-hosted on this same listener and --health-probe-bind-address is ignored.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8081", "The address the metrics endpoint binds to "+
+		"(plain HTTP; the org port standard). The /healthz and /readyz probes are co-hosted on this "+
+		"same listener, so the operator exposes a single operational port.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Ensures there is only one active controller manager.")
-	flag.BoolVar(&secureMetrics, "metrics-secure", true,
-		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
-		"If set, HTTP/2 will be enabled for the metrics and webhook servers.")
+		"If set, HTTP/2 will be enabled for the webhook server.")
 	flag.StringVar(&logLevel, "log-level", "info", "Log level for the controller (debug, info).")
 	flag.StringVar(&webhookConfigName, "webhook-config-name", "",
 		"Name of the ValidatingWebhookConfiguration to patch with the CA bundle. Empty disables webhooks.")
@@ -110,27 +103,23 @@ func main() {
 		tlsOpts = append(tlsOpts, func(c *tls.Config) { c.NextProtos = []string{"http/1.1"} })
 	}
 
+	// The org port standard for controllers: one plain-HTTP operational listener
+	// (:8081) serving /metrics plus the /healthz and /readyz probes (registered as
+	// ExtraHandlers after the manager is built). Plain HTTP is required for the
+	// co-host: the metrics server wraps every ExtraHandler in its TLS/authn
+	// FilterProvider, which a kubelet's unauthenticated probe can't pass — so
+	// there is no secure-metrics option; restrict the port with a NetworkPolicy.
 	metricsServerOptions := metricsserver.Options{
-		BindAddress:   metricsAddr,
-		SecureServing: secureMetrics,
-		TLSOpts:       tlsOpts,
-	}
-	if secureMetrics {
-		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
-	}
-
-	metricsEnabled := metricsAddr != "0"
-	coHostHealthOnMetrics := metricsEnabled && !secureMetrics
-	healthProbeBindAddress := probeAddr
-	if coHostHealthOnMetrics {
-		healthProbeBindAddress = "0"
+		BindAddress: metricsAddr,
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsServerOptions,
-		WebhookServer:          webhook.NewServer(webhook.Options{TLSOpts: tlsOpts}),
-		HealthProbeBindAddress: healthProbeBindAddress,
+		Scheme:        scheme,
+		Metrics:       metricsServerOptions,
+		WebhookServer: webhook.NewServer(webhook.Options{TLSOpts: tlsOpts}),
+		// The dedicated health-probe server is disabled; probes are co-hosted on
+		// the metrics listener above.
+		HealthProbeBindAddress: "0",
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "litellm-operator.home-operations.com",
 	})
@@ -174,7 +163,7 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	if err := setupProbes(mgr, coHostHealthOnMetrics, webhooksEnabled, metricsAddr); err != nil {
+	if err := setupProbes(mgr, webhooksEnabled, metricsAddr); err != nil {
 		setupLog.Error(err, "unable to set up health checks")
 		os.Exit(1)
 	}
@@ -273,24 +262,24 @@ func setupCertRotationAndWebhooks(mgr ctrl.Manager, cfg certRotationConfig) {
 	}()
 }
 
-func setupProbes(mgr ctrl.Manager, coHostHealthOnMetrics, webhooksEnabled bool, metricsAddr string) error {
+// setupProbes registers /healthz (liveness ping) and /readyz on the metrics
+// listener so the operator exposes a single operational port. The dedicated
+// health-probe server is disabled, so mgr.AddHealthzCheck/AddReadyzCheck would
+// feed nothing — the checks go on the metrics server as ExtraHandlers instead.
+// healthz.CheckHandler returns 200 when the checker passes and 500 otherwise —
+// the contract a kubelet HTTP probe expects.
+func setupProbes(mgr ctrl.Manager, webhooksEnabled bool, metricsAddr string) error {
 	readyz := healthz.Ping
 	if webhooksEnabled {
 		readyz = func(req *http.Request) error { return mgr.GetWebhookServer().StartedChecker()(req) }
 	}
 
-	if coHostHealthOnMetrics {
-		if err := mgr.AddMetricsServerExtraHandler("/healthz", healthz.CheckHandler{Checker: healthz.Ping}); err != nil {
-			return err
-		}
-		if err := mgr.AddMetricsServerExtraHandler("/readyz", healthz.CheckHandler{Checker: readyz}); err != nil {
-			return err
-		}
-		setupLog.Info("serving probes on the metrics listener", "bind-address", metricsAddr)
-		return nil
-	}
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+	if err := mgr.AddMetricsServerExtraHandler("/healthz", healthz.CheckHandler{Checker: healthz.Ping}); err != nil {
 		return err
 	}
-	return mgr.AddReadyzCheck("readyz", readyz)
+	if err := mgr.AddMetricsServerExtraHandler("/readyz", healthz.CheckHandler{Checker: readyz}); err != nil {
+		return err
+	}
+	setupLog.Info("serving health and readiness probes on the metrics listener", "bind-address", metricsAddr)
+	return nil
 }
