@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.0.8](https://github.com/home-operations/litellm-operator/compare/0.0.7...0.0.8) (2026-07-10)
+
+
+### Features
+
+* **deps:** update module github.com/defilantech/llmkube (v0.8.28 → v0.9.0) ([#32](https://github.com/home-operations/litellm-operator/issues/32)) ([8f98fef](https://github.com/home-operations/litellm-operator/commit/8f98fef484f1eda2834449e2948ca1c41b4c1ad3))
+* **proxy:** add volumes, volumeMounts and pod metadata to workload ([#41](https://github.com/home-operations/litellm-operator/issues/41)) ([dbbf078](https://github.com/home-operations/litellm-operator/commit/dbbf078cc8a42479a53e3e4b52dd880414cf37ec))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.9.0 → v0.9.1) ([#35](https://github.com/home-operations/litellm-operator/issues/35)) ([2695919](https://github.com/home-operations/litellm-operator/commit/2695919b0b28def7438e2d26259766bf062ee469))
+
+
+### Miscellaneous Chores
+
+* **mise:** Update tool go (1.26.4 → 1.26.5) ([#37](https://github.com/home-operations/litellm-operator/issues/37)) ([46112b8](https://github.com/home-operations/litellm-operator/commit/46112b8b4e92c3faf8041bca5f37c9c3189906d9))
+* **mise:** Update tool helm (4.2.2 → 4.2.3) ([#39](https://github.com/home-operations/litellm-operator/issues/39)) ([a6cad6f](https://github.com/home-operations/litellm-operator/commit/a6cad6faf2dd4b5cffd8b0a008fe33e49884cac3))
+* **mise:** Update tool lefthook (2.1.9 → 2.1.10) ([#36](https://github.com/home-operations/litellm-operator/issues/36)) ([4e81587](https://github.com/home-operations/litellm-operator/commit/4e8158710ea7bf54336702a6085f80dbda1d0c52))
+* **mise:** Update tool oxfmt (0.57.0 → 0.58.0) ([#34](https://github.com/home-operations/litellm-operator/issues/34)) ([4d2e7e4](https://github.com/home-operations/litellm-operator/commit/4d2e7e4914ae949e037c6b5809c8c19e03eaf438))
+
 ## [0.0.7](https://github.com/home-operations/litellm-operator/compare/0.0.6...0.0.7) (2026-07-04)
 
 
