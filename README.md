@@ -89,6 +89,42 @@ blocks take precedence over `extraConfig`. The three settings blocks
 (`generalSettings`, `routerSettings`, `litellmSettings`) remain free-form
 passthroughs.
 
+## Workload customization
+
+`podAnnotations` and `podLabels` land on the pod template; the operator's
+config-hash annotation and selector labels take precedence. `volumes` and
+`volumeMounts` take standard `corev1` shapes and are merged alongside the
+operator's `config` volume — the reserved name `config` and the `/etc/litellm`
+mount path are rejected at admission so they can't be shadowed.
+
+For example, LiteLLM's ChatGPT OAuth provider needs its device-flow refresh token
+to survive restarts and be shared by every replica, so it goes on a PVC:
+
+```yaml
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+    name: main
+    namespace: ai
+spec:
+    replicas: 3
+    env:
+        - name: CHATGPT_TOKEN_DIR
+          value: /app/chatgpt_tokens
+    podAnnotations:
+        reloader.stakater.com/auto: "true"
+    volumes:
+        - name: chatgpt-tokens
+          persistentVolumeClaim:
+              claimName: litellm
+    volumeMounts:
+        - name: chatgpt-tokens
+          mountPath: /app/chatgpt_tokens
+```
+
+The PVC (`litellm` here) must exist and, for multi-replica proxies, use an access
+mode that allows shared read-write (e.g. `ReadWriteMany`).
+
 ## Apply modes
 
 `spec.applyMode` controls how models reach the proxy. The default, `file`, renders
@@ -108,8 +144,9 @@ UI- or hand-added models alone.
 A validating admission webhook (enabled by default) rejects mistakes before they
 reach the cluster: a `LiteLLMModel` that sets both `apiKey` and `apiKeyRef`, two
 models whose names sanitize to the same injected env var (which would silently
-clobber one key), and a `LiteLLMProxy` whose `spec.route` is missing hostnames or
-a parent reference. The operator self-manages the webhook serving certificate and
+clobber one key), a `LiteLLMProxy` whose `spec.route` is missing hostnames or
+a parent reference, and a `LiteLLMProxy` whose `spec.volumes`/`spec.volumeMounts`
+reuse the reserved `config` name or the `/etc/litellm` mount path. The operator self-manages the webhook serving certificate and
 patches the CA bundle into the `ValidatingWebhookConfiguration`, so there is no
 cert-manager dependency. Set `webhook.enabled=false` to turn it off.
 

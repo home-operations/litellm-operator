@@ -44,6 +44,20 @@ func (v *Validator) validate(p *litellmv1alpha1.LiteLLMProxy) (admission.Warning
 		}
 	}
 
+	for i, v := range p.Spec.Volumes {
+		if v.Name == litellmv1alpha1.ProxyConfigVolumeName {
+			return nil, fmt.Errorf("spec.volumes[%d].name %q is reserved for the operator-managed config volume", i, v.Name)
+		}
+	}
+	for i, m := range p.Spec.VolumeMounts {
+		if m.Name == litellmv1alpha1.ProxyConfigVolumeName {
+			return nil, fmt.Errorf("spec.volumeMounts[%d].name %q is reserved for the operator-managed config mount", i, m.Name)
+		}
+		if m.MountPath == litellmv1alpha1.ProxyConfigMountPath {
+			return nil, fmt.Errorf("spec.volumeMounts[%d].mountPath %q is reserved for the operator-managed config mount", i, m.MountPath)
+		}
+	}
+
 	route := p.Spec.Route
 	if route == nil {
 		return nil, nil

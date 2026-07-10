@@ -16,12 +16,13 @@ import (
 )
 
 const (
-	appName         = "litellm"
-	configFileName  = "config.yaml"
-	configMountPath = "/etc/litellm"
-	proxyContainer  = appName
-	proxyPort       = 4000
-	httpPortName    = "http"
+	appName          = "litellm"
+	configFileName   = "config.yaml"
+	configMountPath  = litellmv1alpha1.ProxyConfigMountPath
+	configVolumeName = litellmv1alpha1.ProxyConfigVolumeName
+	proxyContainer   = appName
+	proxyPort        = 4000
+	httpPortName     = "http"
 
 	conditionTypeReady = "Ready"
 

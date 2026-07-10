@@ -20,3 +20,13 @@ exclude = ["charts/litellm-operator/README.md"]
 
 [pre-commit.commands.format-json]
 exclude = ["charts/litellm-operator/values.schema.json"]
+
+# The generated CRD/RBAC/webhook manifests are .prettierignore'd; exclude them
+# from the shared yaml formatter too (oxfmt exits non-zero when every input is
+# ignored, e.g. a commit that only touches a regenerated CRD).
+[pre-commit.commands.format-yaml]
+exclude = [
+  "config/crd/bases/*",
+  "config/rbac/role.yaml",
+  "config/webhook/manifests.yaml",
+]

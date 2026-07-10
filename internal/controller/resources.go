@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"maps"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +25,27 @@ func selectorLabels(proxy *litellmv1alpha1.LiteLLMProxy) map[string]string {
 		"app.kubernetes.io/instance":   proxy.Name,
 		"app.kubernetes.io/managed-by": "litellm-operator",
 	}
+}
+
+// podLabels merges user-supplied pod labels under the operator-managed selector
+// labels, which always win so the Service keeps matching the pod.
+func podLabels(selector, extra map[string]string) map[string]string {
+	if len(extra) == 0 {
+		return selector
+	}
+	merged := make(map[string]string, len(selector)+len(extra))
+	maps.Copy(merged, extra)
+	maps.Copy(merged, selector)
+	return merged
+}
+
+// podAnnotations merges user-supplied pod annotations under the operator-managed
+// config-hash annotation, which always wins so config changes still roll the pods.
+func podAnnotations(extra map[string]string, configHash string) map[string]string {
+	merged := make(map[string]string, len(extra)+1)
+	maps.Copy(merged, extra)
+	merged[configHashAnnotation] = configHash
+	return merged
 }
 
 func buildConfigMap(proxy *litellmv1alpha1.LiteLLMProxy, config string) *corev1.ConfigMap {
@@ -138,6 +160,21 @@ func buildDeployment(proxy *litellmv1alpha1.LiteLLMProxy, configHash string, mod
 		readiness = defaultProbe("/health/readiness")
 	}
 
+	volumeMounts := append([]corev1.VolumeMount{{
+		Name:      configVolumeName,
+		MountPath: configMountPath,
+		ReadOnly:  true,
+	}}, proxy.Spec.VolumeMounts...)
+
+	volumes := append([]corev1.Volume{{
+		Name: configVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: configMapName(proxy)},
+			},
+		},
+	}}, proxy.Spec.Volumes...)
+
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      proxy.Name,
@@ -149,8 +186,8 @@ func buildDeployment(proxy *litellmv1alpha1.LiteLLMProxy, configHash string, mod
 			Selector: &metav1.LabelSelector{MatchLabels: labels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      labels,
-					Annotations: map[string]string{configHashAnnotation: configHash},
+					Labels:      podLabels(labels, proxy.Spec.PodLabels),
+					Annotations: podAnnotations(proxy.Spec.PodAnnotations, configHash),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -167,20 +204,9 @@ func buildDeployment(proxy *litellmv1alpha1.LiteLLMProxy, configHash string, mod
 						Resources:      proxy.Spec.Resources,
 						LivenessProbe:  liveness,
 						ReadinessProbe: readiness,
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "config",
-							MountPath: configMountPath,
-							ReadOnly:  true,
-						}},
+						VolumeMounts:   volumeMounts,
 					}},
-					Volumes: []corev1.Volume{{
-						Name: "config",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: configMapName(proxy)},
-							},
-						},
-					}},
+					Volumes: volumes,
 				},
 			},
 		},
