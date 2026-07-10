@@ -6,6 +6,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	// ProxyConfigVolumeName is the name of the operator-managed volume and
+	// volumeMount that carry the rendered config.yaml. User-supplied volumes and
+	// volumeMounts must not reuse this name.
+	ProxyConfigVolumeName = "config"
+
+	// ProxyConfigMountPath is where the operator mounts the rendered config.yaml.
+	// User-supplied volumeMounts must not reuse this path.
+	ProxyConfigMountPath = "/etc/litellm"
+)
+
 // RouteParentRef identifies the Gateway (or other parent) the HTTPRoute attaches to.
 type RouteParentRef struct {
 	// Name of the parent Gateway.
@@ -226,6 +237,30 @@ type LiteLLMProxySpec struct {
 	// of /health/readiness on the proxy port.
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// PodAnnotations are added to the pod template metadata, for platform
+	// integrations such as reloader or scrape config. The operator-managed
+	// config-hash annotation cannot be overridden.
+	// +optional
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+
+	// PodLabels are merged into the pod template labels, on top of the labels the
+	// operator manages. They cannot override the selector labels.
+	// +optional
+	PodLabels map[string]string `json:"podLabels,omitempty"`
+
+	// Volumes are added to the proxy pod, alongside the operator-managed config
+	// volume. The reserved name "config" is rejected at admission.
+	// +optional
+	// +listType=atomic
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// VolumeMounts are added to the proxy container, alongside the operator-managed
+	// config mount. The reserved name "config" and the /etc/litellm mount path are
+	// rejected at admission.
+	// +optional
+	// +listType=atomic
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // LiteLLMProxyStatus reports the observed state of the proxy.
