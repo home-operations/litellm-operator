@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.9](https://github.com/home-operations/litellm-operator/compare/0.0.8...0.0.9) (2026-07-13)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.9.1 → v0.9.5) ([#38](https://github.com/home-operations/litellm-operator/issues/38)) ([5457d65](https://github.com/home-operations/litellm-operator/commit/5457d657d98551c0b543decd2eae19c6415603f5))
+
 ## [0.0.8](https://github.com/home-operations/litellm-operator/compare/0.0.7...0.0.8) (2026-07-10)
 
 
