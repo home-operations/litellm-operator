@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -55,7 +56,8 @@ func TestE2E(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("building the operator image")
-	_, err := run("docker", "build", "-t", image, "--build-arg", "GO_VERSION=1.26.4", repoRoot)
+	goVersion := strings.TrimPrefix(runtime.Version(), "go")
+	_, err := run("docker", "build", "-t", image, "--build-arg", "GO_VERSION="+goVersion, repoRoot)
 	Expect(err).NotTo(HaveOccurred())
 
 	By("loading the image into the kind cluster")
