@@ -26,36 +26,36 @@ operator:
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMProxy
 metadata:
-    name: main
-    namespace: ai
+  name: main
+  namespace: ai
 spec:
-    routerSettings:
-        routing_strategy: simple-shuffle
-    # No modelSelector: this proxy adopts every LiteLLMModel in its namespace.
-    route:
-        hostnames:
-            - litellm.example.com
-        parentRefs:
-            - name: envoy-external
-              namespace: network
+  routerSettings:
+    routing_strategy: simple-shuffle
+  # No modelSelector: this proxy adopts every LiteLLMModel in its namespace.
+  route:
+    hostnames:
+      - litellm.example.com
+    parentRefs:
+      - name: envoy-external
+        namespace: network
 ---
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel
 metadata:
-    name: glm-5-2
-    namespace: ai
+  name: glm-5-2
+  namespace: ai
 spec:
-    modelName: glm-5.2
-    params:
-        model: openai/glm-5.2
-        apiBase: https://api.z.ai/api/coding/paas/v4
-        apiKeyRef:
-            name: litellm-secrets
-            key: ZAI_API_KEY
-        dropParams: true
-    info:
-        maxInputTokens: 1000000
-        supportsFunctionCalling: true
+  modelName: glm-5.2
+  params:
+    model: openai/glm-5.2
+    apiBase: https://api.z.ai/api/coding/paas/v4
+    apiKeyRef:
+      name: litellm-secrets
+      key: ZAI_API_KEY
+    dropParams: true
+  info:
+    maxInputTokens: 1000000
+    supportsFunctionCalling: true
 ```
 
 Models bind to a proxy in one of three ways, most specific first: a model's
@@ -104,22 +104,22 @@ to survive restarts and be shared by every replica, so it goes on a PVC:
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMProxy
 metadata:
-    name: main
-    namespace: ai
+  name: main
+  namespace: ai
 spec:
-    replicas: 3
-    env:
-        - name: CHATGPT_TOKEN_DIR
-          value: /app/chatgpt_tokens
-    podAnnotations:
-        reloader.stakater.com/auto: "true"
-    volumes:
-        - name: chatgpt-tokens
-          persistentVolumeClaim:
-              claimName: litellm
-    volumeMounts:
-        - name: chatgpt-tokens
-          mountPath: /app/chatgpt_tokens
+  replicas: 3
+  env:
+    - name: CHATGPT_TOKEN_DIR
+      value: /app/chatgpt_tokens
+  podAnnotations:
+    reloader.stakater.com/auto: "true"
+  volumes:
+    - name: chatgpt-tokens
+      persistentVolumeClaim:
+        claimName: litellm
+  volumeMounts:
+    - name: chatgpt-tokens
+      mountPath: /app/chatgpt_tokens
 ```
 
 The PVC (`litellm` here) must exist and, for multi-replica proxies, use an access
