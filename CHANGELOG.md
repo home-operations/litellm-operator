@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.0.10](https://github.com/home-operations/litellm-operator/compare/0.0.9...0.0.10) (2026-07-24)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/defilantech/llmkube (v0.9.5 → v0.9.6) ([#45](https://github.com/home-operations/litellm-operator/issues/45)) ([05ae88c](https://github.com/home-operations/litellm-operator/commit/05ae88cfb0b74eca6100ff2f905be71f99d643ee))
+* **deps:** update module github.com/defilantech/llmkube (v0.9.6 → v0.9.8) ([#47](https://github.com/home-operations/litellm-operator/issues/47)) ([2d5fe66](https://github.com/home-operations/litellm-operator/commit/2d5fe660aadc533e4075d5c4cdbdb63502806159))
+* **deps:** update module sigs.k8s.io/gateway-api (v1.6.0 → v1.6.1) ([#46](https://github.com/home-operations/litellm-operator/issues/46)) ([f3bb7f9](https://github.com/home-operations/litellm-operator/commit/f3bb7f942c7689bc1c155b1c6c8c2087ca0f973d))
+
+
+### Styles
+
+* indent markdown at 2 to match embedded yaml ([#50](https://github.com/home-operations/litellm-operator/issues/50)) ([ae5f0db](https://github.com/home-operations/litellm-operator/commit/ae5f0db31a25696cba92889848fa19f8c4f43c6a))
+
+
+### Miscellaneous Chores
+
+* add zizmor ([e3d0934](https://github.com/home-operations/litellm-operator/commit/e3d0934eb8893d07fbb499184b5a074154efdd31))
+* **mise:** Lock file maintenance tool ([#54](https://github.com/home-operations/litellm-operator/issues/54)) ([b6bdda7](https://github.com/home-operations/litellm-operator/commit/b6bdda700d23db806d35eaf46f351e7cc717da0e))
+* **mise:** Update tool cosign (3.1.1 → 3.1.2) ([#49](https://github.com/home-operations/litellm-operator/issues/49)) ([71d1dbc](https://github.com/home-operations/litellm-operator/commit/71d1dbcdbec57046eee527154f35fd22f478d4b6))
+* **mise:** Update tool oxfmt (0.58.0 → 0.59.0) ([#43](https://github.com/home-operations/litellm-operator/issues/43)) ([2bef1ee](https://github.com/home-operations/litellm-operator/commit/2bef1ee5b190f6e9b41b1d107b3df8db86fd1653))
+* **mise:** Update tool oxfmt (0.59.0 → 0.60.0) ([#52](https://github.com/home-operations/litellm-operator/issues/52)) ([5da78ec](https://github.com/home-operations/litellm-operator/commit/5da78ecf41f015386044a95dc7bebcf4c3127b65))
+* **mise:** Update tool zizmor (1.27.0 → 1.28.0) ([#51](https://github.com/home-operations/litellm-operator/issues/51)) ([cd171d6](https://github.com/home-operations/litellm-operator/commit/cd171d62874e0a7794abe42944dc38a4dc72851a))
+
 ## [0.0.9](https://github.com/home-operations/litellm-operator/compare/0.0.8...0.0.9) (2026-07-13)
 
 
