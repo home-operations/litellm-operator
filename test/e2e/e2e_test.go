@@ -19,20 +19,7 @@ var _ = Describe("operational port", func() {
 
 		base := fmt.Sprintf("http://%s-metrics.%s.svc:8081", release, namespace)
 		script := fmt.Sprintf("curl -fsS %s/healthz && curl -fsS %s/readyz && curl -fsS %s/metrics", base, base, base)
-		defer func() {
-			_, _ = kubectl("delete", "pod", "curl-metrics", "-n", namespace, "--ignore-not-found")
-		}()
-		// Run detached and read the logs afterwards: `kubectl run -i --rm` can miss
-		// the pod's output when the command finishes before attach connects.
-		_, err = kubectl("run", "curl-metrics", "-n", namespace, "--restart=Never",
-			"--image=curlimages/curl:latest", "--", "sh", "-c", script)
-		Expect(err).NotTo(HaveOccurred())
-		Eventually(func(g Gomega) {
-			phase, err := kubectl("get", "pod", "curl-metrics", "-n", namespace, "-o", "jsonpath={.status.phase}")
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(phase).To(Equal("Succeeded"))
-		}, 2*time.Minute, 5*time.Second).Should(Succeed())
-		out, err = kubectl("logs", "curl-metrics", "-n", namespace)
+		out, err = runPod(namespace, "curl-metrics", curlImage, 2*time.Minute, "sh", "-c", script)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(out).To(ContainSubstring("go_goroutines"))
 	})
@@ -103,13 +90,13 @@ spec:
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(out).To(ContainSubstring("glm-5.2"))
 			g.Expect(out).To(ContainSubstring("os.environ/LITELLM_MODELKEY_GLM"))
-		}, 2*time.Minute, 5*time.Second).Should(Succeed())
+		}).Should(Succeed())
 
 		Eventually(func(g Gomega) {
 			out, err := kubectl("get", "deployment", "main", "-n", testNS,
 				"-o", "jsonpath={.spec.template.metadata.annotations.litellm\\.home-operations\\.com/config-hash}")
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(out).NotTo(BeEmpty())
-		}, 2*time.Minute, 5*time.Second).Should(Succeed())
+		}).Should(Succeed())
 	})
 })

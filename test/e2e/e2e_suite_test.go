@@ -1,53 +1,21 @@
+// Package e2e drives a Helm-installed litellm-operator through its user-facing
+// contracts on the Kind cluster $KIND_CLUSTER names (`mise run test-e2e`
+// creates and deletes it): the operational port, the validating webhook,
+// config-mode reconciliation, and the api-mode admin-API sync.
+//
+// The suite is excluded from `mise run test` by path, not a build tag, so
+// `go vet ./...` still compiles it.
 package e2e
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-const (
-	image     = "litellm-operator:e2e"
-	namespace = "litellm-system"
-	release   = "litellm-operator"
-	chartPath = "../../charts/litellm-operator"
-	repoRoot  = "../.."
-)
-
-func kindCluster() string {
-	if c := os.Getenv("KIND_CLUSTER"); c != "" {
-		return c
-	}
-	return "litellm-operator-e2e"
-}
-
-// run executes a command, streaming output to the Ginkgo writer, and returns combined output.
-func run(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	_, _ = fmt.Fprintf(GinkgoWriter, "$ %s %s\n", name, strings.Join(args, " "))
-	out, err := cmd.CombinedOutput()
-	_, _ = fmt.Fprint(GinkgoWriter, string(out))
-	return string(out), err
-}
-
-func kubectl(args ...string) (string, error) {
-	return run("kubectl", args...)
-}
-
-// kubectlApply pipes the given manifest to `kubectl apply -f -`.
-func kubectlApply(manifest string) (string, error) {
-	cmd := exec.Command("kubectl", "apply", "-f", "-")
-	cmd.Stdin = strings.NewReader(manifest)
-	out, err := cmd.CombinedOutput()
-	_, _ = fmt.Fprint(GinkgoWriter, string(out))
-	return string(out), err
-}
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -55,6 +23,11 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	// Every wait in this suite is a cluster reconcile; specs override only
+	// where they need something longer (e.g. pulling the litellm image).
+	SetDefaultEventuallyTimeout(2 * time.Minute)
+	SetDefaultEventuallyPollingInterval(5 * time.Second)
+
 	By("building the operator image")
 	goVersion := strings.TrimPrefix(runtime.Version(), "go")
 	_, err := run("docker", "build", "-t", image, "--build-arg", "GO_VERSION="+goVersion, repoRoot)
@@ -72,6 +45,19 @@ var _ = BeforeSuite(func() {
 		"--set", "image.pullPolicy=Never",
 		"--wait", "--timeout", "5m")
 	Expect(err).NotTo(HaveOccurred())
+})
+
+// The cluster is thrown away right after the run, so dump the state a failure
+// needs while it still exists — otherwise CI only shows the failed assertion.
+var _ = AfterEach(func() {
+	if !CurrentSpecReport().Failed() {
+		return
+	}
+	By("dumping cluster state (spec failed)")
+	_, _ = kubectl("get", "pods,litellmproxies,litellmmodels", "-A", "-o", "wide")
+	_, _ = kubectl("get", "events", "-A", "--field-selector", "type=Warning", "--sort-by=.lastTimestamp")
+	_, _ = kubectl("logs", "-n", namespace,
+		"-l", "app.kubernetes.io/name="+release, "--tail=200", "--all-containers")
 })
 
 var _ = AfterSuite(func() {

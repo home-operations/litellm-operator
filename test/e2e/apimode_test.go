@@ -121,14 +121,12 @@ var _ = Describe("litellm-operator api mode", Ordered, func() {
 
 		By("confirming the model is registered on the proxy via the admin API")
 		Eventually(func(g Gomega) {
-			out, err := run("kubectl", "run", "apicheck", "-n", apiNS,
-				"--rm", "--attach", "--restart=Never", "--quiet",
-				"--image=curlimages/curl:8.11.1", "--command", "--",
+			out, err := runPod(apiNS, "apicheck", curlImage, time.Minute,
 				"curl", "-sS", "-H", "Authorization: Bearer "+masterKey,
 				"http://apiproxy.default.svc:4000/model/info")
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(out).To(ContainSubstring("gpt-4o-mini"))
 			g.Expect(out).To(ContainSubstring("litellm-operator")) // managed_by tag
-		}, 2*time.Minute, 15*time.Second).Should(Succeed())
+		}, 3*time.Minute).Should(Succeed())
 	})
 })

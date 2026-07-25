@@ -49,6 +49,15 @@ jobs:
           experimental: true
           install_args: --locked
 
+      - name: Cache Go modules and build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
       - name: Run e2e tests
         run: mise run test-e2e
 
