@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.11](https://github.com/home-operations/litellm-operator/compare/0.0.10...0.0.11) (2026-08-05)
+
+
+### Continuous Integration
+
+* **github-action:** Update action jdx/mise-action (v4.2.3 → v4.2.4) ([#88](https://github.com/home-operations/litellm-operator/issues/88)) ([d3e3d29](https://github.com/home-operations/litellm-operator/commit/d3e3d299039513cb2113420922e6a7ea68a0504b))
+
 ## [0.0.10](https://github.com/home-operations/litellm-operator/compare/0.0.9...0.0.10) (2026-08-03)
 
 
