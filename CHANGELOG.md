@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.12](https://github.com/home-operations/litellm-operator/compare/0.0.11...0.0.12) (2026-08-06)
+
+
+### Bug Fixes
+
+* **chart:** grant RBAC for LiteLLM teams and virtual keys ([d3034d4](https://github.com/home-operations/litellm-operator/commit/d3034d4b06ac400c3e2f64bb1e7c807739c5ef4c))
+
 ## [0.0.11](https://github.com/home-operations/litellm-operator/compare/0.0.10...0.0.11) (2026-08-05)
 
 

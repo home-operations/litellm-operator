@@ -2,9 +2,9 @@
 
 A Kubernetes operator that renders LiteLLM proxy config from CRDs
 
-![Version](https://img.shields.io/static/v1?label=Version&message=0.0.11&color=informational&style=flat-square) <!-- x-release-please-version -->
+![Version](https://img.shields.io/static/v1?label=Version&message=0.0.12&color=informational&style=flat-square) <!-- x-release-please-version -->
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
-![AppVersion](https://img.shields.io/static/v1?label=AppVersion&message=0.0.11&color=informational&style=flat-square) <!-- x-release-please-version -->
+![AppVersion](https://img.shields.io/static/v1?label=AppVersion&message=0.0.12&color=informational&style=flat-square) <!-- x-release-please-version -->
 
 ## Installing
 
