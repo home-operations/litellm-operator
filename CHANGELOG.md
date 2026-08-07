@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.13](https://github.com/home-operations/litellm-operator/compare/0.0.12...0.0.13) (2026-08-07)
+
+
+### Miscellaneous Chores
+
+* **mise:** Update tool oxfmt (0.61.0 → 0.62.0) ([#91](https://github.com/home-operations/litellm-operator/issues/91)) ([7fdc392](https://github.com/home-operations/litellm-operator/commit/7fdc392758230d82ccd91233f94b481ae836b8fa))
+
 ## [0.0.12](https://github.com/home-operations/litellm-operator/compare/0.0.11...0.0.12) (2026-08-06)
 
 
