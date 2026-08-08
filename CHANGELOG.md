@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.14](https://github.com/home-operations/litellm-operator/compare/0.0.13...0.0.14) (2026-08-08)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.9.13 → v0.9.14) ([#89](https://github.com/home-operations/litellm-operator/issues/89)) ([71439e9](https://github.com/home-operations/litellm-operator/commit/71439e95a9e64a79ca345bf917d9c7be4839c31f))
+
+
+### Continuous Integration
+
+* **github-action:** Update action docker/github-builder (v1.15.0 → v1.16.0) ([#94](https://github.com/home-operations/litellm-operator/issues/94)) ([5bd2e07](https://github.com/home-operations/litellm-operator/commit/5bd2e07f87d9891155773aee7eb145ae6debc648))
+
 ## [0.0.13](https://github.com/home-operations/litellm-operator/compare/0.0.12...0.0.13) (2026-08-07)
 
 
