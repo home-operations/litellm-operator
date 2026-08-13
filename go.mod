@@ -1,6 +1,6 @@
 module github.com/home-operations/litellm-operator
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/defilantech/llmkube v0.9.16
