@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.0.14](https://github.com/home-operations/litellm-operator/compare/0.0.13...0.0.14) (2026-08-20)
+
+
+### Features
+
+* support HTTPRoute filters ([743a737](https://github.com/home-operations/litellm-operator/commit/743a737c565dd6c39019e8ead6fdd1be9ce75c2b))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.9.13 → v0.9.14) ([#89](https://github.com/home-operations/litellm-operator/issues/89)) ([71439e9](https://github.com/home-operations/litellm-operator/commit/71439e95a9e64a79ca345bf917d9c7be4839c31f))
+* **go:** update module github.com/defilantech/llmkube (v0.9.14 → v0.9.16) ([#96](https://github.com/home-operations/litellm-operator/issues/96)) ([b5889e1](https://github.com/home-operations/litellm-operator/commit/b5889e1840772e3a55d70b9580c0acd540dd2f2d))
+* keep HTTPRoute filters CRD validation valid ([1804f53](https://github.com/home-operations/litellm-operator/commit/1804f535bc3bbd78a1b6a779620d604f3edf9258))
+* reconcile virtual key spec changes ([750d7ab](https://github.com/home-operations/litellm-operator/commit/750d7ab5c6a6103cd95046f07a1deeb95f132bc0))
+
+
+### Documentation
+
+* describe the pinned go directive policy ([#104](https://github.com/home-operations/litellm-operator/issues/104)) ([91f8448](https://github.com/home-operations/litellm-operator/commit/91f844886621d8b3fd2cc6728d3055229534f359))
+
+
+### Continuous Integration
+
+* **github-action:** Update action docker/github-builder (v1.15.0 → v1.16.0) ([#94](https://github.com/home-operations/litellm-operator/issues/94)) ([5bd2e07](https://github.com/home-operations/litellm-operator/commit/5bd2e07f87d9891155773aee7eb145ae6debc648))
+
+
+### Miscellaneous Chores
+
+* **mise:** Update tool cosign (3.1.2 → 3.1.3) ([#97](https://github.com/home-operations/litellm-operator/issues/97)) ([dd85bfc](https://github.com/home-operations/litellm-operator/commit/dd85bfcf3cb21473befc2d43d4c25e3e5931a02d))
+* **mise:** update tool go (1.26.5 → 1.26.6) ([#106](https://github.com/home-operations/litellm-operator/issues/106)) ([b510085](https://github.com/home-operations/litellm-operator/commit/b5100852026c288efdb8faa5b3cc3f452a7b5a21))
+
 ## [0.0.13](https://github.com/home-operations/litellm-operator/compare/0.0.12...0.0.13) (2026-08-07)
 
 
