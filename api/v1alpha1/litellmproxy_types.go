@@ -19,6 +19,14 @@ const (
 
 // RouteParentRef identifies the Gateway (or other parent) the HTTPRoute attaches to.
 type RouteParentRef struct {
+	// Group is the group of the referent.
+	// +optional
+	Group *string `json:"group,omitempty"`
+
+	// Kind is kind of the referent.
+	// +optional
+	Kind *string `json:"kind,omitempty"`
+
 	// Name of the parent Gateway.
 	// +kubebuilder:validation:Required
 	Name string `json:"name"`

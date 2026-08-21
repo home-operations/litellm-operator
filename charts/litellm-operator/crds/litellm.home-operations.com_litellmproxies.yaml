@@ -846,6 +846,12 @@ spec:
                       description: RouteParentRef identifies the Gateway (or other
                         parent) the HTTPRoute attaches to.
                       properties:
+                        group:
+                          description: Group is the group of the referent.
+                          type: string
+                        kind:
+                          description: Kind is kind of the referent.
+                          type: string
                         name:
                           description: Name of the parent Gateway.
                           type: string

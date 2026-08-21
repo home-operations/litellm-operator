@@ -93,6 +93,14 @@ func buildRoute(proxy *litellmv1alpha1.LiteLLMProxy) *gatewayv1.HTTPRoute {
 	parentRefs := make([]gatewayv1.ParentReference, 0, len(route.ParentRefs))
 	for _, p := range route.ParentRefs {
 		ref := gatewayv1.ParentReference{Name: gatewayv1.ObjectName(p.Name)}
+		if p.Group != nil {
+			g := gatewayv1.Group(*p.Group)
+			ref.Group = &g
+		}
+		if p.Kind != nil {
+			k := gatewayv1.Kind(*p.Kind)
+			ref.Kind = &k
+		}
 		if p.Namespace != "" {
 			ns := gatewayv1.Namespace(p.Namespace)
 			ref.Namespace = &ns
