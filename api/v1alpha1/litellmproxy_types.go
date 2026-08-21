@@ -38,6 +38,10 @@ type RouteParentRef struct {
 	// SectionName pins the route to a specific Gateway listener.
 	// +optional
 	SectionName string `json:"sectionName,omitempty"`
+
+	// Port is the network port this Route targets.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
 }
 
 // ProxyRoute describes the HTTPRoute the operator creates for the proxy.

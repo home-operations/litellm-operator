@@ -859,6 +859,10 @@ spec:
                           description: Namespace of the parent Gateway. Defaults to
                             the proxy's namespace.
                           type: string
+                        port:
+                          description: Port is the network port this Route targets.
+                          format: int32
+                          type: integer
                         sectionName:
                           description: SectionName pins the route to a specific Gateway
                             listener.

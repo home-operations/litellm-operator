@@ -99,6 +99,7 @@ func TestBuildRoute_PassesParentRefKinds(t *testing.T) {
 						Group: new(""),
 						Kind:  new("Service"),
 						Name:  "service",
+						Port:  new(int32(8080)),
 					},
 				},
 			},
