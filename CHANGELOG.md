@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.15](https://github.com/home-operations/litellm-operator/compare/0.0.14...0.0.15) (2026-08-21)
+
+
+### Bug Fixes
+
+* watch generated HTTPRoutes ([7bbc721](https://github.com/home-operations/litellm-operator/commit/7bbc72185de99b2be009298e444ccee29778969a))
+
+
+### Tests
+
+* install Gateway API CRDs for e2e ([15c382f](https://github.com/home-operations/litellm-operator/commit/15c382f5ad67cc6671411b8cc349ffcf7b90d350))
+
 ## [0.0.14](https://github.com/home-operations/litellm-operator/compare/0.0.13...0.0.14) (2026-08-20)
 
 
