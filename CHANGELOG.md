@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.0.16](https://github.com/home-operations/litellm-operator/compare/0.0.15...0.0.16) (2026-08-22)
+
+
+### Features
+
+* **go:** update module github.com/stretchr/testify (v1.11.1 → v1.12.1) ([#107](https://github.com/home-operations/litellm-operator/issues/107)) ([f9e5a68](https://github.com/home-operations/litellm-operator/commit/f9e5a686f47e490ba8d5db821c645c2067179b63))
+
+
+### Bug Fixes
+
+* **go:** update kubernetes monorepo (v0.36.3 → v0.36.4) ([#110](https://github.com/home-operations/litellm-operator/issues/110)) ([03b55d0](https://github.com/home-operations/litellm-operator/commit/03b55d0d3c8b586b475eed7831fba6b263f3939d))
+* **go:** update module github.com/defilantech/llmkube (v0.9.16 → v0.9.19) ([#100](https://github.com/home-operations/litellm-operator/issues/100)) ([6741794](https://github.com/home-operations/litellm-operator/commit/6741794dc6025d1af28fe81a976fa260d751ea51))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v4.2.4 → v4.2.5) ([#103](https://github.com/home-operations/litellm-operator/issues/103)) ([6aa0704](https://github.com/home-operations/litellm-operator/commit/6aa07047dbff7e46effcedb85f5877341ee04a23))
+* **mise:** update mise tools ([#102](https://github.com/home-operations/litellm-operator/issues/102)) ([1141a7c](https://github.com/home-operations/litellm-operator/commit/1141a7caacc6761df58038a50c8fab10590fc138))
+* **mise:** update tool oxfmt (0.62.0 → 0.63.0) ([#99](https://github.com/home-operations/litellm-operator/issues/99)) ([c782e21](https://github.com/home-operations/litellm-operator/commit/c782e21be0efc804caddd7e965f21bdd691dd5ef))
+* **mise:** update tool oxfmt (0.63.0 → 0.64.0) ([#114](https://github.com/home-operations/litellm-operator/issues/114)) ([e4b2d78](https://github.com/home-operations/litellm-operator/commit/e4b2d781d29cbd92d14a57ee49fe1a1510c89cce))
+
 ## [0.0.15](https://github.com/home-operations/litellm-operator/compare/0.0.14...0.0.15) (2026-08-21)
 
 
