@@ -13,7 +13,7 @@ kubectl = "1.36.4"
 lefthook = "2.1.11"
 oxfmt = "0.64.0"
 setup-envtest = "0.24.1"
-"aqua:dadav/helm-schema" = "0.23.4"
+"aqua:dadav/helm-schema" = "0.23.5"
 yq = "4.53.6"
 zizmor = "1.29.0"
 
