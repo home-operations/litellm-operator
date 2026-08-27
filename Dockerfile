@@ -6,9 +6,6 @@ ARG TARGETARCH
 ARG VERSION=dev
 ARG REVISION=dev
 
-# upx (build stage only) compresses the final binary to shrink the image.
-RUN apk add --no-cache upx
-
 WORKDIR /workspace
 # Download deps in their own layer so source changes don't invalidate the cache.
 COPY go.mod go.mod
@@ -23,8 +20,6 @@ COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go build -a -ldflags "-X main.version=${VERSION} -X main.commit=${REVISION}" \
     -o manager cmd/main.go
-
-RUN upx --best --lzma manager
 
 # https://github.com/GoogleContainerTools/distroless
 FROM gcr.io/distroless/static:nonroot
