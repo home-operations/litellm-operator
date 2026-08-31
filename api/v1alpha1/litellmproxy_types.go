@@ -259,6 +259,40 @@ type LiteLLMProxySpec struct {
 	// +optional
 	// +listType=atomic
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// ServiceAccountName is the pod's ServiceAccount. Set this to grant the
+	// workload the RBAC bound to that ServiceAccount. Defaults to the namespace
+	// default ServiceAccount when empty.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// AutomountServiceAccountToken controls whether the ServiceAccount token is
+	// mounted into the pod. Defaults to true (Kubernetes default).
+	// +optional
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+
+	// SecurityContext is the container's security context (runAsNonRoot,
+	// capabilities, readOnlyRootFilesystem, ...). Required under a Pod Security
+	// "restricted" namespace.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// PodSecurityContext is the pod-level security context (runAsUser, fsGroup,
+	// seccompProfile, ...).
+	// +optional
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// NodeSelector constrains the pod to nodes with matching labels.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Tolerations allow the pod to schedule onto tainted nodes.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// Affinity constrains pod scheduling (node/pod affinity and anti-affinity).
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // LiteLLMProxyStatus reports the observed state of the proxy.
