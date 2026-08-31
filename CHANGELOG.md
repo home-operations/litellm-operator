@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.0.17](https://github.com/home-operations/litellm-operator/compare/0.0.16...0.0.17) (2026-08-31)
+
+
+### Features
+
+* **go:** update kubernetes monorepo (v0.36.4 → v0.37.0) ([#121](https://github.com/home-operations/litellm-operator/issues/121)) ([00b3809](https://github.com/home-operations/litellm-operator/commit/00b38098caf72be230bee035769baf8b0367184a))
+* **go:** update module github.com/onsi/gomega (v1.42.1 → v1.43.0) ([#126](https://github.com/home-operations/litellm-operator/issues/126)) ([d2032db](https://github.com/home-operations/litellm-operator/commit/d2032db2ad896c35043b793ca05b32733b4e4839))
+* **route:** support custom parentRef kinds ([#115](https://github.com/home-operations/litellm-operator/issues/115)) ([5e94cda](https://github.com/home-operations/litellm-operator/commit/5e94cdabdaecb867c2e604889f1ab7aaeaa1d81c))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.9.20 → v0.9.22) ([#127](https://github.com/home-operations/litellm-operator/issues/127)) ([655b702](https://github.com/home-operations/litellm-operator/commit/655b7029fc853d55ad9a23176c5fe53d299ea89c))
+* **go:** update module github.com/defilantech/llmkube (v0.9.22 → v0.9.24) ([#129](https://github.com/home-operations/litellm-operator/issues/129)) ([6b75bb3](https://github.com/home-operations/litellm-operator/commit/6b75bb30ab3f43c47a0a7973eda5e9305b36a74c))
+* **route:** harden parentRefs after custom kind support ([#134](https://github.com/home-operations/litellm-operator/issues/134)) ([2bec3d5](https://github.com/home-operations/litellm-operator/commit/2bec3d53a91e414376c5a9cf47e3bcdab00e1683))
+
+
+### Documentation
+
+* **agents:** derive Go version from go.mod ([3a13796](https://github.com/home-operations/litellm-operator/commit/3a13796d974781cbed29627b440ddf04168ee3c4))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v4.2.5 → v4.3.0) ([#128](https://github.com/home-operations/litellm-operator/issues/128)) ([bd9fc99](https://github.com/home-operations/litellm-operator/commit/bd9fc99186d4f86506aa683087bed35b96bc6bcb))
+* **mise:** update tool aqua:dadav/helm-schema (0.23.4 → 0.23.5) ([#124](https://github.com/home-operations/litellm-operator/issues/124)) ([8927234](https://github.com/home-operations/litellm-operator/commit/89272342dc88c4e68ebfdccde6e5aa59e9e9a6c6))
+* **mise:** update tool golangci-lint (2.13.1 → 2.13.2) ([#132](https://github.com/home-operations/litellm-operator/issues/132)) ([057674f](https://github.com/home-operations/litellm-operator/commit/057674f821bdfb65cbf5eb3573e477bac54dc21c))
+* **mise:** update tool kind (0.32.0 → 0.33.0) ([#131](https://github.com/home-operations/litellm-operator/issues/131)) ([b9cf927](https://github.com/home-operations/litellm-operator/commit/b9cf927dec601c1e5cc392f97bbac4858dac1471))
+* **mise:** update tool kubectl (1.36.4 → 1.37.0) ([#130](https://github.com/home-operations/litellm-operator/issues/130)) ([565b669](https://github.com/home-operations/litellm-operator/commit/565b6699563c01d44616de658c8de91a6e8a5287))
+* **mise:** update tool lefthook (2.1.11 → 2.1.12) ([#133](https://github.com/home-operations/litellm-operator/issues/133)) ([fe3b917](https://github.com/home-operations/litellm-operator/commit/fe3b917928f557f09df47ec91f918d976ecbfbac))
+* **mise:** update tool oxfmt (0.64.0 → 0.65.0) ([#125](https://github.com/home-operations/litellm-operator/issues/125)) ([9ada066](https://github.com/home-operations/litellm-operator/commit/9ada066a785ef14ba8302ddc41cd66b1325c99bb))
+
 ## [0.0.16](https://github.com/home-operations/litellm-operator/compare/0.0.15...0.0.16) (2026-08-27)
 
 
