@@ -129,8 +129,16 @@ var _ = Describe("LiteLLMProxy reconciliation", func() {
 				ModelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{proxyLabel: proxyName}},
 				Service:       litellmv1alpha1.ProxyServiceSpec{Port: 4000},
 				Route: &litellmv1alpha1.ProxyRoute{
-					Hostnames:  []string{"litellm.example.com"},
-					ParentRefs: []litellmv1alpha1.RouteParentRef{{Name: "envoy", Namespace: "network"}},
+					Hostnames: []string{"litellm.example.com"},
+					ParentRefs: []gatewayv1.ParentReference{
+						{Name: "envoy", Namespace: new(gatewayv1.Namespace("network"))},
+						{
+							Group: new(gatewayv1.Group("")),
+							Kind:  new(gatewayv1.Kind("Service")),
+							Name:  proxyName,
+							Port:  new(gatewayv1.PortNumber(4000)),
+						},
+					},
 				},
 			},
 		}
@@ -193,6 +201,10 @@ var _ = Describe("LiteLLMProxy reconciliation", func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: proxyName, Namespace: ns}, &route)).To(Succeed())
 			g.Expect(route.Spec.Hostnames).To(ContainElement(gatewayv1.Hostname("litellm.example.com")))
 			g.Expect(route.Spec.Rules[0].BackendRefs[0].Name).To(Equal(gatewayv1.ObjectName(proxyName)))
+			g.Expect(route.Spec.ParentRefs).To(HaveLen(2))
+			g.Expect(route.Spec.ParentRefs[1].Group).To(HaveValue(Equal(gatewayv1.Group(""))))
+			g.Expect(route.Spec.ParentRefs[1].Kind).To(HaveValue(Equal(gatewayv1.Kind("Service"))))
+			g.Expect(route.Spec.ParentRefs[1].Port).To(HaveValue(Equal(gatewayv1.PortNumber(4000))))
 		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
 
 		hashBefore := deploy.Spec.Template.Annotations["litellm.home-operations.com/config-hash"]

@@ -4,6 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 const (
@@ -17,30 +18,19 @@ const (
 	ProxyConfigMountPath = "/etc/litellm"
 )
 
-// RouteParentRef identifies the Gateway (or other parent) the HTTPRoute attaches to.
-type RouteParentRef struct {
-	// Name of the parent Gateway.
-	// +kubebuilder:validation:Required
-	Name string `json:"name"`
-
-	// Namespace of the parent Gateway. Defaults to the proxy's namespace.
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
-
-	// SectionName pins the route to a specific Gateway listener.
-	// +optional
-	SectionName string `json:"sectionName,omitempty"`
-}
-
 // ProxyRoute describes the HTTPRoute the operator creates for the proxy.
 type ProxyRoute struct {
 	// Hostnames the route matches.
 	// +kubebuilder:validation:MinItems=1
 	Hostnames []string `json:"hostnames"`
 
-	// ParentRefs are the Gateways the route attaches to.
+	// ParentRefs are the parents (Gateways by default; other kinds such as
+	// Service or ListenerSet where the implementation supports them) the route
+	// attaches to. Two refs to the same parent must each set a distinct
+	// sectionName; the standard Gateway API channel does not distinguish refs
+	// by port alone.
 	// +kubebuilder:validation:MinItems=1
-	ParentRefs []RouteParentRef `json:"parentRefs"`
+	ParentRefs []gatewayv1.ParentReference `json:"parentRefs"`
 
 	// Filters are applied to the generated HTTPRoute rule.
 	// The upstream type is preserved as raw JSON in this CRD because its CORS

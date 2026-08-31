@@ -94,13 +94,13 @@ func TestRenderConfig_TypedFieldsAndPassthroughMerge(t *testing.T) {
 		APIBase:    "https://super",
 		APIVersion: "2024-01-01",
 		DropParams: &drop,
-		RPM:        ptr[int64](100),
-		TPM:        ptr[int64](200000),
+		RPM:        new(int64(100)),
+		TPM:        new(int64(200000)),
 		Additional: raw(`{"timeout": 30, "stream_timeout": 10}`),
 	})
 	m.Spec.Info = &litellmv1alpha1.ModelInfo{
-		MaxInputTokens:          ptr[int64](262144),
-		SupportsFunctionCalling: ptr(true),
+		MaxInputTokens:          new(int64(262144)),
+		SupportsFunctionCalling: new(true),
 	}
 
 	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
@@ -128,13 +128,13 @@ func TestRenderConfig_TypedFieldsAndPassthroughMerge(t *testing.T) {
 func TestRenderConfig_TypedModelInfoMapsToSnakeCase(t *testing.T) {
 	m := model("mm", "MiniMax-M3", litellmv1alpha1.LiteLLMParams{Model: "minimax/MiniMax-M3"})
 	m.Spec.Info = &litellmv1alpha1.ModelInfo{
-		MaxTokens:               ptr[int64](1000000),
-		MaxInputTokens:          ptr[int64](192000),
-		MaxOutputTokens:         ptr[int64](16384),
+		MaxTokens:               new(int64(1000000)),
+		MaxInputTokens:          new(int64(192000)),
+		MaxOutputTokens:         new(int64(16384)),
 		Mode:                    "messages",
-		SupportsFunctionCalling: ptr(true),
-		SupportsPromptCaching:   ptr(true),
-		SupportsVision:          ptr(false),
+		SupportsFunctionCalling: new(true),
+		SupportsPromptCaching:   new(true),
+		SupportsVision:          new(false),
 		Extra:                   raw(`{"custom_key": "v"}`),
 	}
 	got, err := renderM(&litellmv1alpha1.LiteLLMProxy{}, []litellmv1alpha1.LiteLLMModel{m})
@@ -466,5 +466,3 @@ func TestRenderConfig_APIModeSettingsOmitModelListAndEnableDBStore(t *testing.T)
 	require.Len(t, got.models, 1)
 	assert.Equal(t, "glm-5.2", got.models[0][keyModelName])
 }
-
-func ptr[T any](v T) *T { return &v }

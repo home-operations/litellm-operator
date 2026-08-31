@@ -87,7 +87,7 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("apply service: %w", err)
 	}
 	if err := r.reconcileRoute(ctx, &proxy); err != nil {
-		return ctrl.Result{}, fmt.Errorf("reconcile route: %w", err)
+		return ctrl.Result{}, r.markFailed(ctx, &proxy, "RouteFailed", err.Error())
 	}
 
 	if apiMode {

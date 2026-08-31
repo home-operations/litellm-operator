@@ -7,6 +7,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
 )
@@ -72,8 +73,42 @@ func (v *Validator) validate(p *litellmv1alpha1.LiteLLMProxy) (admission.Warning
 		if ref.Name == "" {
 			return nil, fmt.Errorf("spec.route.parentRefs[%d].name must not be empty", i)
 		}
+		// The apiserver defaults an unset group to gateway.networking.k8s.io, which
+		// has no Service kind; the HTTPRoute would be accepted and never attach.
+		if ref.Kind != nil && *ref.Kind == "Service" && (ref.Group == nil || *ref.Group == gatewayv1.GroupName) {
+			return nil, fmt.Errorf("spec.route.parentRefs[%d].group must be explicitly set to \"\" for kind Service", i)
+		}
+		for j := range i {
+			if !sameParent(route.ParentRefs[j], ref) {
+				continue
+			}
+			// Mirrors the standard-channel HTTPRoute rule, which does not tell refs
+			// to the same parent apart by port.
+			if ref.SectionName == nil || route.ParentRefs[j].SectionName == nil {
+				return nil, fmt.Errorf("spec.route.parentRefs[%d] and [%d] reference the same parent; each must set a distinct sectionName", j, i)
+			}
+			if *ref.SectionName == *route.ParentRefs[j].SectionName {
+				return nil, fmt.Errorf("spec.route.parentRefs[%d] and [%d] reference the same parent and sectionName", j, i)
+			}
+		}
 	}
 	return nil, nil
+}
+
+// sameParent reports whether two refs name the same parent object, applying
+// the Gateway API defaults for an unset group or kind.
+func sameParent(a, b gatewayv1.ParentReference) bool {
+	return ptrOr(a.Group, gatewayv1.GroupName) == ptrOr(b.Group, gatewayv1.GroupName) &&
+		ptrOr(a.Kind, "Gateway") == ptrOr(b.Kind, "Gateway") &&
+		ptrOr(a.Namespace, "") == ptrOr(b.Namespace, "") &&
+		a.Name == b.Name
+}
+
+func ptrOr[T ~string](p *T, def T) T {
+	if p == nil {
+		return def
+	}
+	return *p
 }
 
 // SetupWebhookWithManager registers the validating webhook.
