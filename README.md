@@ -38,6 +38,12 @@ spec:
     parentRefs:
       - name: envoy-external
         namespace: network
+      # Other parent kinds work where the Gateway implementation supports them.
+      # A Service parent needs group: "" (the core API group) set explicitly.
+      - group: ""
+        kind: Service
+        name: main
+        port: 4000
 ---
 apiVersion: litellm.home-operations.com/v1alpha1
 kind: LiteLLMModel

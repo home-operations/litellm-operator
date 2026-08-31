@@ -17,6 +17,7 @@ import (
 const (
 	proxyName          = "main"
 	proxyRouteHostname = "llm.example.com"
+	gatewayName        = "gateway"
 )
 
 func TestBuildDeployment_DefaultProbesHitLiteLLMHealthEndpoints(t *testing.T) {
@@ -67,7 +68,7 @@ func TestBuildRoute_PassesFiltersToGeneratedRule(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: proxyName, Namespace: "ai"},
 		Spec: litellmv1alpha1.LiteLLMProxySpec{Route: &litellmv1alpha1.ProxyRoute{
 			Hostnames:  []string{proxyRouteHostname},
-			ParentRefs: []litellmv1alpha1.RouteParentRef{{Name: "gateway"}},
+			ParentRefs: []gatewayv1.ParentReference{{Name: gatewayName}},
 			Filters: []runtime.RawExtension{{Raw: mustJSON(t, gatewayv1.HTTPRouteFilter{
 				Type: gatewayv1.HTTPRouteFilterRequestHeaderModifier,
 				RequestHeaderModifier: &gatewayv1.HTTPHeaderFilter{
@@ -83,41 +84,44 @@ func TestBuildRoute_PassesFiltersToGeneratedRule(t *testing.T) {
 	assert.Equal(t, gatewayv1.HTTPRouteFilterRequestHeaderModifier, route.Spec.Rules[0].Filters[0].Type)
 }
 
-func TestBuildRoute_PassesParentRefKinds(t *testing.T) {
+func TestBuildRoute_PassesParentRefsVerbatim(t *testing.T) {
+	parentRefs := []gatewayv1.ParentReference{
+		{Name: gatewayName},
+		{
+			Group:       new(gatewayv1.Group("gateway.networking.k8s.io")),
+			Kind:        new(gatewayv1.Kind("ListenerSet")),
+			Namespace:   new(gatewayv1.Namespace("network")),
+			Name:        "internal",
+			SectionName: new(gatewayv1.SectionName("https")),
+		},
+		{
+			Group: new(gatewayv1.Group("")),
+			Kind:  new(gatewayv1.Kind("Service")),
+			Name:  "service",
+			Port:  new(gatewayv1.PortNumber(8080)),
+		},
+	}
 	proxy := &litellmv1alpha1.LiteLLMProxy{
 		ObjectMeta: metav1.ObjectMeta{Name: proxyName, Namespace: "ai"},
 		Spec: litellmv1alpha1.LiteLLMProxySpec{
 			Route: &litellmv1alpha1.ProxyRoute{
-				Hostnames: []string{proxyRouteHostname},
-				ParentRefs: []litellmv1alpha1.RouteParentRef{
-					{
-						Group: new("gateway.networking.k8s.io"),
-						Kind:  new("ListenerSet"),
-						Name:  "internal",
-					},
-					{
-						Group: new(""),
-						Kind:  new("Service"),
-						Name:  "service",
-						Port:  new(int32(8080)),
-					},
-				},
+				Hostnames:  []string{proxyRouteHostname},
+				ParentRefs: parentRefs,
 			},
 		},
 	}
 
 	route := buildRoute(proxy)
-	require.Len(t, route.Spec.ParentRefs, 2)
+	require.Len(t, route.Spec.ParentRefs, 3)
+	assert.Equal(t, parentRefs, route.Spec.ParentRefs)
 
-	require.NotNil(t, route.Spec.ParentRefs[0].Group)
-	assert.Equal(t, gatewayv1.Group("gateway.networking.k8s.io"), *route.Spec.ParentRefs[0].Group)
-	require.NotNil(t, route.Spec.ParentRefs[0].Kind)
-	assert.Equal(t, gatewayv1.Kind("ListenerSet"), *route.Spec.ParentRefs[0].Kind)
-
-	require.NotNil(t, route.Spec.ParentRefs[1].Group)
-	assert.Equal(t, gatewayv1.Group(""), *route.Spec.ParentRefs[1].Group)
-	require.NotNil(t, route.Spec.ParentRefs[1].Kind)
-	assert.Equal(t, gatewayv1.Kind("Service"), *route.Spec.ParentRefs[1].Kind)
+	// An unset group/kind/port must stay unset so the apiserver applies the
+	// HTTPRoute defaults rather than the operator emitting group: "".
+	assert.Nil(t, route.Spec.ParentRefs[0].Group)
+	assert.Nil(t, route.Spec.ParentRefs[0].Kind)
+	assert.Nil(t, route.Spec.ParentRefs[0].Port)
+	require.NotNil(t, route.Spec.ParentRefs[2].Port)
+	assert.Equal(t, gatewayv1.PortNumber(8080), *route.Spec.ParentRefs[2].Port)
 }
 
 func mustJSON(t *testing.T, value any) []byte {
@@ -132,7 +136,7 @@ func TestBuildRoute_OmitsFiltersWhenUnset(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: proxyName, Namespace: "ai"},
 		Spec: litellmv1alpha1.LiteLLMProxySpec{Route: &litellmv1alpha1.ProxyRoute{
 			Hostnames:  []string{proxyRouteHostname},
-			ParentRefs: []litellmv1alpha1.RouteParentRef{{Name: "gateway"}},
+			ParentRefs: []gatewayv1.ParentReference{{Name: gatewayName}},
 		}},
 	}
 

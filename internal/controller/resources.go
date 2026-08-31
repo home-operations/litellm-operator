@@ -90,28 +90,6 @@ func buildService(proxy *litellmv1alpha1.LiteLLMProxy) *corev1.Service {
 func buildRoute(proxy *litellmv1alpha1.LiteLLMProxy) *gatewayv1.HTTPRoute {
 	route := proxy.Spec.Route
 
-	parentRefs := make([]gatewayv1.ParentReference, 0, len(route.ParentRefs))
-	for _, p := range route.ParentRefs {
-		ref := gatewayv1.ParentReference{Name: gatewayv1.ObjectName(p.Name), Port: p.Port}
-		if p.Group != nil {
-			g := gatewayv1.Group(*p.Group)
-			ref.Group = &g
-		}
-		if p.Kind != nil {
-			k := gatewayv1.Kind(*p.Kind)
-			ref.Kind = &k
-		}
-		if p.Namespace != "" {
-			ns := gatewayv1.Namespace(p.Namespace)
-			ref.Namespace = &ns
-		}
-		if p.SectionName != "" {
-			sn := gatewayv1.SectionName(p.SectionName)
-			ref.SectionName = &sn
-		}
-		parentRefs = append(parentRefs, ref)
-	}
-
 	hostnames := make([]gatewayv1.Hostname, 0, len(route.Hostnames))
 	for _, h := range route.Hostnames {
 		hostnames = append(hostnames, gatewayv1.Hostname(h))
@@ -137,7 +115,7 @@ func buildRoute(proxy *litellmv1alpha1.LiteLLMProxy) *gatewayv1.HTTPRoute {
 			Labels:    selectorLabels(proxy),
 		},
 		Spec: gatewayv1.HTTPRouteSpec{
-			CommonRouteSpec: gatewayv1.CommonRouteSpec{ParentRefs: parentRefs},
+			CommonRouteSpec: gatewayv1.CommonRouteSpec{ParentRefs: route.ParentRefs},
 			Hostnames:       hostnames,
 			Rules: []gatewayv1.HTTPRouteRule{{
 				Filters: filters,
