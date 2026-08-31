@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.18](https://github.com/home-operations/litellm-operator/compare/0.0.17...0.0.18) (2026-08-31)
+
+
+### Features
+
+* **proxy:** add more deployment-related fields ([#135](https://github.com/home-operations/litellm-operator/issues/135)) ([672cea1](https://github.com/home-operations/litellm-operator/commit/672cea1f3ce1bf3acf15cf58164a620f4ac50a7c))
+
 ## [0.0.17](https://github.com/home-operations/litellm-operator/compare/0.0.16...0.0.17) (2026-08-31)
 
 
