@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.19](https://github.com/home-operations/litellm-operator/compare/0.0.18...0.0.19) (2026-09-01)
+
+
+### Features
+
+* **virtualkeys:** add labels/annotations on virtualkey secret ([#137](https://github.com/home-operations/litellm-operator/issues/137)) ([0e360a0](https://github.com/home-operations/litellm-operator/commit/0e360a068a3532099044a8a7cc36a92c48ac6fc2))
+
 ## [0.0.18](https://github.com/home-operations/litellm-operator/compare/0.0.17...0.0.18) (2026-08-31)
 
 
