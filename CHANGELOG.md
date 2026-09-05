@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.0.20](https://github.com/home-operations/litellm-operator/compare/0.0.19...0.0.20) (2026-09-05)
+
+
+### Features
+
+* **go:** update module sigs.k8s.io/controller-runtime (v0.24.1 → v0.25.0) ([#142](https://github.com/home-operations/litellm-operator/issues/142)) ([e3a7fac](https://github.com/home-operations/litellm-operator/commit/e3a7fac904e13899c5334c0737ef477259846e3c))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.9.24 → v0.9.25) ([#145](https://github.com/home-operations/litellm-operator/issues/145)) ([24d9118](https://github.com/home-operations/litellm-operator/commit/24d9118d953c7a0ecb647dd18e230d1708561430))
+* **go:** update module sigs.k8s.io/gateway-api (v1.6.1 → v1.6.2) ([#141](https://github.com/home-operations/litellm-operator/issues/141)) ([b5e2b1c](https://github.com/home-operations/litellm-operator/commit/b5e2b1cdbc3775fcbd292eb652faf7526424e9a1))
+
+
+### Miscellaneous Chores
+
+* **mise:** update tool kube-controller-tools (0.21.0 → v0.22.0) ([#146](https://github.com/home-operations/litellm-operator/issues/146)) ([11ad87c](https://github.com/home-operations/litellm-operator/commit/11ad87ccc7885d20ee4c7896de551496fefe7b92))
+* **mise:** update tool oxfmt (0.65.0 → 0.66.0) ([#143](https://github.com/home-operations/litellm-operator/issues/143)) ([107c0b8](https://github.com/home-operations/litellm-operator/commit/107c0b8a3b932f35c39fc9c3d0119e18a33de8e2))
+* **mise:** update tool zizmor (1.29.0 → 1.30.0) ([#139](https://github.com/home-operations/litellm-operator/issues/139)) ([e5579ca](https://github.com/home-operations/litellm-operator/commit/e5579ca8149c91201e655b2144964c378f4f08d9))
+
 ## [0.0.19](https://github.com/home-operations/litellm-operator/compare/0.0.18...0.0.19) (2026-09-01)
 
 
