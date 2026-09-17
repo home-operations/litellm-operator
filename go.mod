@@ -4,7 +4,7 @@ go 1.26.6
 
 require (
 	github.com/defilantech/llmkube v0.9.28
-	github.com/onsi/ginkgo/v2 v2.32.2
+	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.0
 	github.com/open-policy-agent/cert-controller v0.16.0
 	github.com/stretchr/testify v1.12.1
