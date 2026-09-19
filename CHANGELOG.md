@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.0.20](https://github.com/home-operations/litellm-operator/compare/0.0.19...0.0.20) (2026-09-19)
+
+
+### Features
+
+* **go:** update module github.com/onsi/ginkgo/v2 (v2.32.2 → v2.33.0) ([#163](https://github.com/home-operations/litellm-operator/issues/163)) ([38d59f7](https://github.com/home-operations/litellm-operator/commit/38d59f74cf33d72da79e654b17dd89ed0667266b))
+* **go:** update module sigs.k8s.io/controller-runtime (v0.24.1 → v0.25.0) ([#142](https://github.com/home-operations/litellm-operator/issues/142)) ([e3a7fac](https://github.com/home-operations/litellm-operator/commit/e3a7fac904e13899c5334c0737ef477259846e3c))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.9.24 → v0.9.25) ([#145](https://github.com/home-operations/litellm-operator/issues/145)) ([24d9118](https://github.com/home-operations/litellm-operator/commit/24d9118d953c7a0ecb647dd18e230d1708561430))
+* **go:** update module github.com/defilantech/llmkube (v0.9.25 → v0.9.27) ([#154](https://github.com/home-operations/litellm-operator/issues/154)) ([8685371](https://github.com/home-operations/litellm-operator/commit/86853712d7aaac3d38ec2b1741973868a026a6f8))
+* **go:** update module github.com/defilantech/llmkube (v0.9.27 → v0.9.28) ([#157](https://github.com/home-operations/litellm-operator/issues/157)) ([03fcd52](https://github.com/home-operations/litellm-operator/commit/03fcd52602172fbbd8dab36259d620b3eadf22b7))
+* **go:** update module github.com/onsi/ginkgo/v2 (v2.32.1 → v2.32.2) ([#149](https://github.com/home-operations/litellm-operator/issues/149)) ([58c94cd](https://github.com/home-operations/litellm-operator/commit/58c94cd6392dc0e0737213e33c3f66d0a11c1be2))
+* **go:** update module sigs.k8s.io/controller-runtime (v0.25.0 → v0.25.1) ([#153](https://github.com/home-operations/litellm-operator/issues/153)) ([3588e3f](https://github.com/home-operations/litellm-operator/commit/3588e3f1b1c896b0a497766ea108516fa87d4287))
+* **go:** update module sigs.k8s.io/gateway-api (v1.6.1 → v1.6.2) ([#141](https://github.com/home-operations/litellm-operator/issues/141)) ([b5e2b1c](https://github.com/home-operations/litellm-operator/commit/b5e2b1cdbc3775fcbd292eb652faf7526424e9a1))
+
+
+### Continuous Integration
+
+* **github-action:** Update action home-operations/.github/actions/workflow-lint (v1.0.3 → v1.0.4) ([#165](https://github.com/home-operations/litellm-operator/issues/165)) ([4716a59](https://github.com/home-operations/litellm-operator/commit/4716a5975e02bddbc9d13c79cf14d76f81a1bb27))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action ubuntu (24.04 → 26.04) ([#164](https://github.com/home-operations/litellm-operator/issues/164)) ([15151ff](https://github.com/home-operations/litellm-operator/commit/15151ff4954291e6c6db1ba0dd7122111fe038f5))
+* **mise:** update tool go:golang.org/x/vuln/cmd/govulncheck (1.7.0 → v1.8.0) ([#148](https://github.com/home-operations/litellm-operator/issues/148)) ([47f9759](https://github.com/home-operations/litellm-operator/commit/47f9759cb07099d7aff2be8078a6a7e6d3f8df78))
+* **mise:** update tool helm (4.2.4 → 4.3.0) ([#152](https://github.com/home-operations/litellm-operator/issues/152)) ([a624b23](https://github.com/home-operations/litellm-operator/commit/a624b23109d4d01b61381cedb0cef275b3493070))
+* **mise:** update tool kube-controller-tools (0.21.0 → v0.22.0) ([#146](https://github.com/home-operations/litellm-operator/issues/146)) ([11ad87c](https://github.com/home-operations/litellm-operator/commit/11ad87ccc7885d20ee4c7896de551496fefe7b92))
+* **mise:** update tool lefthook (2.1.12 → 2.1.14) ([#159](https://github.com/home-operations/litellm-operator/issues/159)) ([3fdefd3](https://github.com/home-operations/litellm-operator/commit/3fdefd323a25ef1d9106a5027bf043d84fe6ee2b))
+* **mise:** update tool oxfmt (0.65.0 → 0.66.0) ([#143](https://github.com/home-operations/litellm-operator/issues/143)) ([107c0b8](https://github.com/home-operations/litellm-operator/commit/107c0b8a3b932f35c39fc9c3d0119e18a33de8e2))
+* **mise:** update tool oxfmt (0.66.0 → 0.67.0) ([#150](https://github.com/home-operations/litellm-operator/issues/150)) ([46e72ff](https://github.com/home-operations/litellm-operator/commit/46e72ffb1aef090209929237f0180f95332a8ae4))
+* **mise:** update tool oxfmt (0.67.0 → 0.68.0) ([#161](https://github.com/home-operations/litellm-operator/issues/161)) ([fe0b94f](https://github.com/home-operations/litellm-operator/commit/fe0b94ff8e084b594535691a3ffd1f8199dfc8c4))
+* **mise:** update tool setup-envtest (0.24.1 → 0.25.0) ([#147](https://github.com/home-operations/litellm-operator/issues/147)) ([c31294c](https://github.com/home-operations/litellm-operator/commit/c31294c3d8c7fe2c0a9d5a1009ad31510c7a7b35))
+* **mise:** update tool setup-envtest (0.25.0 → 0.25.1) ([#158](https://github.com/home-operations/litellm-operator/issues/158)) ([453253d](https://github.com/home-operations/litellm-operator/commit/453253d0bb37c4b4a1574bf0d15a659a0992e9df))
+* **mise:** update tool zizmor (1.29.0 → 1.30.0) ([#139](https://github.com/home-operations/litellm-operator/issues/139)) ([e5579ca](https://github.com/home-operations/litellm-operator/commit/e5579ca8149c91201e655b2144964c378f4f08d9))
+* **mise:** update tool zizmor (1.30.0 → 1.30.1) ([#151](https://github.com/home-operations/litellm-operator/issues/151)) ([42bc619](https://github.com/home-operations/litellm-operator/commit/42bc619728f779d2774d3833147f6c0b9a665cda))
+
 ## [0.0.19](https://github.com/home-operations/litellm-operator/compare/0.0.18...0.0.19) (2026-09-01)
 
 
