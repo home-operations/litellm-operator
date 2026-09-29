@@ -56,7 +56,7 @@ func syncModels(ctx context.Context, c modelAPI, desired []map[string]any) error
 			}
 			continue
 		}
-		if subsetEqual(params, cur.LiteLLMParams) {
+		if subsetEqual(params, cur.LiteLLMParams) && subsetEqual(info, cur.ModelInfo) {
 			continue
 		}
 		info["id"] = cur.ModelID()
@@ -77,8 +77,9 @@ func syncModels(ctx context.Context, c modelAPI, desired []map[string]any) error
 }
 
 // subsetEqual reports whether every key in desired is present and equal in
-// existing. The proxy echoes back extra litellm-added fields, so a subset
-// comparison avoids treating those as drift.
+// existing. The proxy echoes back extra litellm-added fields (and merges
+// model_info with its cost map), so a subset comparison avoids treating those
+// as drift.
 func subsetEqual(desired, existing map[string]any) bool {
 	for k, v := range desired {
 		ev, ok := existing[k]
