@@ -75,3 +75,24 @@ func TestSyncModels_UpdatesChangedModelWithExistingID(t *testing.T) {
 	assert.Equal(t, "42", f.updated[0].ModelInfo["id"], "update must target the existing model id")
 	assert.Equal(t, "openai/new", f.updated[0].LiteLLMParams[keyModel])
 }
+
+func TestSyncModels_UpdatesChangedModelInfo(t *testing.T) {
+	existing := managedModel("keep", "42", "openai/same")
+	existing.ModelInfo["max_input_tokens"] = 32768
+	existing.ModelInfo["litellm_provider"] = "openai"
+	unchanged := managedModel("other", "43", "openai/other")
+	unchanged.ModelInfo["max_input_tokens"] = 65536
+	f := &fakeModelAPI{existing: []litellmclient.Model{existing, unchanged}}
+
+	changed := desiredModel("keep", "openai/same")
+	changed["model_info"] = map[string]any{"max_input_tokens": 196608}
+	same := desiredModel("other", "openai/other")
+	same["model_info"] = map[string]any{"max_input_tokens": 65536}
+	require.NoError(t, syncModels(context.Background(), f, []map[string]any{changed, same}))
+
+	assert.Empty(t, f.created)
+	assert.Empty(t, f.deleted)
+	require.Len(t, f.updated, 1, "only the model whose model_info changed is updated")
+	assert.Equal(t, "42", f.updated[0].ModelInfo["id"])
+	assert.Equal(t, 196608, f.updated[0].ModelInfo["max_input_tokens"])
+}
