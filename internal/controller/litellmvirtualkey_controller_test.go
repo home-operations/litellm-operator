@@ -21,9 +21,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
+	"github.com/home-operations/litellm-operator/internal/litellmclient"
 )
 
 const (
+	testKeyInfoField     = "info"
+	testKeyModelsField   = "models"
+	testOldKeyValue      = "old"
+	testKeyUpdatePath    = "/key/update"
+	testKeyDuration      = "30d"
+	testProxyName        = "proxy"
 	testMasterSecretName = "master"
 	testMasterSecretKey  = "key"
 	testKeyInfoPath      = "/key/info"
@@ -48,9 +55,12 @@ const (
 // reconciler sees the live key as already matching the spec.
 func writeTestKeyInfo(w http.ResponseWriter) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"key_alias": testKeyAlias,
-		"models":    []string{testKeyModel},
-		"team_id":   testKeyTeam,
+		testMasterSecretKey: testGeneratedKey,
+		testKeyInfoField: map[string]any{
+			"key_alias":        testKeyAlias,
+			testKeyModelsField: []string{testKeyModel},
+			"team_id":          testKeyTeam,
+		},
 	})
 }
 
@@ -96,7 +106,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileCreatesSecretOnce(t *testing.T) {
 	assert.Equal(t, "app.kubernetes.io/part-of", secret.Annotations[managedLabelKeysAnnotation])
 	require.Len(t, requests, 1)
 	assert.Equal(t, testKeyAlias, requests[0]["key_alias"])
-	assert.Equal(t, []any{testKeyModel}, requests[0]["models"])
+	assert.Equal(t, []any{testKeyModel}, requests[0][testKeyModelsField])
 	assert.Equal(t, testKeyTeam, requests[0]["team_id"])
 }
 
@@ -106,11 +116,14 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileUpdatesChangedSpec(t *testing.T) {
 		paths = append(paths, r.URL.Path)
 		switch r.URL.Path {
 		case testKeyInfoPath:
-			_ = json.NewEncoder(w).Encode(map[string]any{"key_alias": testKeyAlias, "models": []string{"old"}, "team_id": testKeyTeam})
-		case "/key/update":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				testMasterSecretKey: testGeneratedKey,
+				testKeyInfoField:    map[string]any{"key_alias": testKeyAlias, testKeyModelsField: []string{testOldKeyValue}, "team_id": testKeyTeam},
+			})
+		case testKeyUpdatePath:
 			var request map[string]any
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
-			assert.Equal(t, []any{testKeyModel}, request["models"])
+			assert.Equal(t, []any{testKeyModel}, request[testKeyModelsField])
 		}
 	}))
 	defer srv.Close()
@@ -125,7 +138,217 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileUpdatesChangedSpec(t *testing.T) {
 
 	_, err := r.Reconcile(t.Context(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: key.Namespace, Name: key.Name}})
 	require.NoError(t, err)
-	assert.Equal(t, []string{testKeyInfoPath, "/key/update"}, paths)
+	assert.Equal(t, []string{testKeyInfoPath, testKeyUpdatePath}, paths)
+}
+
+func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
+	expires := "2026-10-30T12:00:00"
+	tests := []struct {
+		name         string
+		live         litellmclient.VirtualKey
+		desired      litellmv1alpha1.LiteLLMVirtualKeySpec
+		lastDuration string
+		wantUpdates  int
+		wantDuration string
+	}{
+		{
+			name: "nil and empty collections match",
+			live: litellmclient.VirtualKey{Models: []string{}, Aliases: map[string]string{}, Metadata: map[string]string{}},
+		},
+		{
+			name:        "models change in place",
+			live:        litellmclient.VirtualKey{Models: []string{testOldKeyValue}},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{"new"}},
+			wantUpdates: 1,
+		},
+		{
+			name: "clear settings",
+			live: litellmclient.VirtualKey{
+				KeyAlias: testOldKeyValue, Models: []string{testOldKeyValue}, Aliases: map[string]string{"alias": testOldKeyValue},
+				UserID: "old-user", TeamID: "old-team", MaxBudget: new(12.5), BudgetDuration: "1d",
+				MaxParallelRequests: new(int64(3)), TPMLimit: new(int64(100)), RPMLimit: new(int64(10)),
+				Metadata: map[string]string{"app": testOldKeyValue},
+			},
+			wantUpdates: 1,
+		},
+		{
+			name:         "unchanged duration does not renew expiry",
+			live:         litellmclient.VirtualKey{Expires: &expires},
+			desired:      litellmv1alpha1.LiteLLMVirtualKeySpec{Duration: testKeyDuration},
+			lastDuration: testKeyDuration,
+		},
+		{
+			name:         "changing models preserves expiry",
+			live:         litellmclient.VirtualKey{Models: []string{testOldKeyValue}, Expires: &expires},
+			desired:      litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{"new"}, Duration: testKeyDuration},
+			lastDuration: testKeyDuration, wantUpdates: 1,
+		},
+		{
+			name:         "change duration once",
+			live:         litellmclient.VirtualKey{Expires: &expires},
+			desired:      litellmv1alpha1.LiteLLMVirtualKeySpec{Duration: "2d"},
+			lastDuration: testKeyDuration, wantUpdates: 1, wantDuration: "2d",
+		},
+		{
+			name:         "clear duration",
+			live:         litellmclient.VirtualKey{Expires: &expires},
+			lastDuration: testKeyDuration, wantUpdates: 1, wantDuration: "null",
+		},
+		{
+			name:        "adopt existing key with duration",
+			live:        litellmclient.VirtualKey{Expires: &expires},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{Duration: testKeyDuration},
+			wantUpdates: 1, wantDuration: testKeyDuration,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			live := tt.live
+			var updates []map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				switch req.URL.Path {
+				case testKeyInfoPath:
+					assert.Equal(t, testGeneratedKey, req.URL.Query().Get(testMasterSecretKey))
+					_ = json.NewEncoder(w).Encode(map[string]any{testMasterSecretKey: testGeneratedKey, testKeyInfoField: live})
+				case testKeyUpdatePath:
+					var body map[string]any
+					require.NoError(t, json.NewDecoder(req.Body).Decode(&body))
+					assert.Equal(t, testGeneratedKey, body[testMasterSecretKey])
+					updates = append(updates, body)
+					encoded, err := json.Marshal(body)
+					require.NoError(t, err)
+					var next litellmclient.VirtualKey
+					require.NoError(t, json.Unmarshal(encoded, &next))
+					next.Expires = live.Expires
+					if duration, ok := body["duration"]; ok {
+						next.Expires = nil
+						if duration != nil {
+							next.Expires = new("2026-10-31T12:00:00")
+						}
+					}
+					next.Duration = ""
+					live = next
+				default:
+					t.Errorf("unexpected request: %s", req.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer srv.Close()
+
+			key := testVirtualKey()
+			key.Spec = tt.desired
+			key.Spec.ProxyRef = testProxyName
+			key.Spec.SecretName = "application-key"
+			key.Generation = 2
+			output := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: key.Spec.SecretName, Namespace: key.Namespace,
+					Annotations: map[string]string{managedDurationAnnotation: tt.lastDuration},
+				},
+				Data: map[string][]byte{key.SecretDataKey(): []byte(testGeneratedKey)},
+			}
+			masterKey := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: testMasterSecretName, Namespace: key.Namespace},
+				Data:       map[string][]byte{testMasterSecretKey: []byte("master")},
+			}
+			r := testVirtualKeyReconciler(t, key, testVirtualKeyProxy(srv.URL), masterKey, output)
+			require.NoError(t, ctrl.SetControllerReference(key, output, r.Scheme))
+			require.NoError(t, r.Update(t.Context(), output))
+			request := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: key.Namespace, Name: key.Name}}
+			for range 2 {
+				_, err := r.Reconcile(t.Context(), request)
+				require.NoError(t, err)
+			}
+			require.Len(t, updates, tt.wantUpdates)
+			if tt.wantUpdates != 0 {
+				switch tt.wantDuration {
+				case "":
+					assert.NotContains(t, updates[0], "duration")
+				case "null":
+					assert.Contains(t, updates[0], "duration")
+					assert.Nil(t, updates[0]["duration"])
+				default:
+					assert.Equal(t, tt.wantDuration, updates[0]["duration"])
+				}
+			}
+			assert.Equal(t, key.Spec.KeyAlias, live.KeyAlias)
+			assert.ElementsMatch(t, key.Spec.Models, live.Models)
+			assert.Equal(t, key.Spec.UserID, live.UserID)
+			assert.Equal(t, key.Spec.TeamID, live.TeamID)
+			assert.Equal(t, key.Spec.BudgetDuration, live.BudgetDuration)
+			assert.Equal(t, key.Spec.MaxParallelRequests, live.MaxParallelRequests)
+			assert.Equal(t, key.Spec.TPMLimit, live.TPMLimit)
+			assert.Equal(t, key.Spec.RPMLimit, live.RPMLimit)
+			assert.Nil(t, live.MaxBudget)
+			assert.Empty(t, live.Aliases)
+			assert.Empty(t, live.Metadata)
+			require.NoError(t, r.Get(t.Context(), request.NamespacedName, key))
+			ready := meta.FindStatusCondition(key.Status.Conditions, conditionTypeReady)
+			require.NotNil(t, ready)
+			assert.Equal(t, metav1.ConditionTrue, ready.Status)
+			assert.Equal(t, key.Generation, ready.ObservedGeneration)
+			require.NoError(t, r.Get(t.Context(), types.NamespacedName{Namespace: key.Namespace, Name: output.Name}, output))
+			assert.Equal(t, []byte(testGeneratedKey), output.Data[key.SecretDataKey()])
+			assert.Equal(t, key.Spec.Duration, output.Annotations[managedDurationAnnotation])
+			if tt.desired.Duration != "" && tt.wantDuration == "" {
+				assert.Equal(t, tt.live.Expires, live.Expires)
+			}
+		})
+	}
+}
+
+func TestLiteLLMVirtualKeyReconciler_ReconcileAPIFailure(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		reason string
+	}{
+		{name: "read fails", path: testKeyInfoPath, reason: "GetFailed"},
+		{name: "update fails", path: testKeyUpdatePath, reason: "UpdateFailed"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Path == tt.path {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					return
+				}
+				assert.Equal(t, testKeyInfoPath, req.URL.Path)
+				_ = json.NewEncoder(w).Encode(map[string]any{testKeyInfoField: map[string]any{testKeyModelsField: []string{testOldKeyValue}}})
+			}))
+			defer srv.Close()
+			key := testVirtualKey()
+			key.Generation = 2
+			key.Spec.Duration = testKeyDuration
+			key.Status.Conditions = []metav1.Condition{{
+				Type: conditionTypeReady, Status: metav1.ConditionTrue, Reason: conditionReasonReconciled,
+				ObservedGeneration: 1, LastTransitionTime: metav1.Now(),
+			}}
+			output := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: key.Spec.SecretName, Namespace: key.Namespace},
+				Data:       map[string][]byte{key.SecretDataKey(): []byte(testGeneratedKey)},
+			}
+			masterKey := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: testMasterSecretName, Namespace: key.Namespace},
+				Data:       map[string][]byte{testMasterSecretKey: []byte("master")},
+			}
+			r := testVirtualKeyReconciler(t, key, testVirtualKeyProxy(srv.URL), masterKey, output)
+			require.NoError(t, ctrl.SetControllerReference(key, output, r.Scheme))
+			require.NoError(t, r.Update(t.Context(), output))
+			request := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: key.Namespace, Name: key.Name}}
+			_, err := r.Reconcile(t.Context(), request)
+			require.ErrorContains(t, err, tt.reason)
+			require.NoError(t, r.Get(t.Context(), request.NamespacedName, key))
+			ready := meta.FindStatusCondition(key.Status.Conditions, conditionTypeReady)
+			require.NotNil(t, ready)
+			assert.Equal(t, metav1.ConditionFalse, ready.Status)
+			assert.Equal(t, tt.reason, ready.Reason)
+			assert.Equal(t, key.Generation, ready.ObservedGeneration)
+			require.NoError(t, r.Get(t.Context(), types.NamespacedName{Namespace: key.Namespace, Name: output.Name}, output))
+			assert.Equal(t, []byte(testGeneratedKey), output.Data[key.SecretDataKey()])
+			assert.NotContains(t, output.Annotations, managedDurationAnnotation)
+		})
+	}
 }
 
 func TestLiteLLMVirtualKeyReconciler_ReconcileUpdatesSecretMetadata(t *testing.T) {
@@ -446,7 +669,7 @@ func testVirtualKey() *litellmv1alpha1.LiteLLMVirtualKey {
 	return &litellmv1alpha1.LiteLLMVirtualKey{
 		ObjectMeta: metav1.ObjectMeta{Name: "application", Namespace: "default"},
 		Spec: litellmv1alpha1.LiteLLMVirtualKeySpec{
-			ProxyRef:   "proxy",
+			ProxyRef:   testProxyName,
 			SecretName: "application-key",
 			SecretKey:  "token",
 			KeyAlias:   "application",
@@ -458,7 +681,7 @@ func testVirtualKey() *litellmv1alpha1.LiteLLMVirtualKey {
 
 func testVirtualKeyProxy(endpoint string) *litellmv1alpha1.LiteLLMProxy {
 	return &litellmv1alpha1.LiteLLMProxy{
-		ObjectMeta: metav1.ObjectMeta{Name: "proxy", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: testProxyName, Namespace: "default"},
 		Spec: litellmv1alpha1.LiteLLMProxySpec{APIAccess: &litellmv1alpha1.APIAccessSpec{
 			Endpoint:     endpoint,
 			MasterKeyRef: litellmv1alpha1.SecretKeyRef{Name: testMasterSecretName, Key: testMasterSecretKey},

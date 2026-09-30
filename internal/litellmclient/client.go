@@ -62,6 +62,7 @@ type VirtualKey struct {
 	UserID              string            `json:"user_id,omitempty"`
 	TeamID              string            `json:"team_id,omitempty"`
 	Duration            string            `json:"duration,omitempty"`
+	Expires             *string           `json:"expires,omitempty"`
 	MaxBudget           *float64          `json:"max_budget,omitempty"`
 	BudgetDuration      string            `json:"budget_duration,omitempty"`
 	MaxParallelRequests *int64            `json:"max_parallel_requests,omitempty"`
@@ -143,24 +144,55 @@ func (c *Client) GenerateVirtualKey(ctx context.Context, key VirtualKeyRequest) 
 
 // GetVirtualKey returns a virtual key's current settings (GET /key/info).
 func (c *Client) GetVirtualKey(ctx context.Context, key string) (VirtualKey, error) {
-	var out VirtualKey
-	err := c.do(ctx, http.MethodGet, "/key/info?key="+url.QueryEscape(key), nil, &out)
-	return out, err
+	var out struct {
+		Info *VirtualKey `json:"info"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/key/info?key="+url.QueryEscape(key), nil, &out); err != nil {
+		return VirtualKey{}, err
+	}
+	if out.Info == nil {
+		return VirtualKey{}, fmt.Errorf("litellmclient: /key/info response has no info")
+	}
+	return *out.Info, nil
 }
 
 // UpdateVirtualKey updates a virtual key in place (POST /key/update).
-func (c *Client) UpdateVirtualKey(ctx context.Context, key string, request VirtualKeyRequest) error {
-	body := map[string]any{"key": key}
-	encoded, err := json.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("encode /key/update body: %w", err)
+// If updateDuration is false, expiry is left unchanged.
+func (c *Client) UpdateVirtualKey(ctx context.Context, key string, request VirtualKeyRequest, updateDuration bool) error {
+	if request.Models == nil {
+		request.Models = []string{}
 	}
-	var fields map[string]any
-	if err := json.Unmarshal(encoded, &fields); err != nil {
-		return fmt.Errorf("encode /key/update fields: %w", err)
+	if request.Aliases == nil {
+		request.Aliases = map[string]string{}
 	}
-	for name, value := range fields {
-		body[name] = value
+	if request.Metadata == nil {
+		request.Metadata = map[string]string{}
+	}
+	// LiteLLM treats omitted fields as unchanged.
+	body := map[string]any{
+		"key":                   key,
+		"models":                request.Models,
+		"aliases":               request.Aliases,
+		"metadata":              request.Metadata,
+		"max_budget":            request.MaxBudget,
+		"max_parallel_requests": request.MaxParallelRequests,
+		"tpm_limit":             request.TPMLimit,
+		"rpm_limit":             request.RPMLimit,
+	}
+	for name, value := range map[string]string{
+		"key_alias": request.KeyAlias, "user_id": request.UserID,
+		"team_id": request.TeamID, "budget_duration": request.BudgetDuration,
+	} {
+		body[name] = nil
+		if value != "" {
+			body[name] = value
+		}
+	}
+	if updateDuration {
+		body["duration"] = nil
+		if request.Duration != "" {
+			body["duration"] = request.Duration
+		}
 	}
 	return c.do(ctx, http.MethodPost, "/key/update", body, nil)
 }

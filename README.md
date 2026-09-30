@@ -149,7 +149,11 @@ UI- or hand-added models alone.
 
 A `LiteLLMVirtualKey` mints a key through the proxy's admin API and writes it to a
 Secret it owns in the same namespace, deleting the remote key when the resource
-goes away. `secretAnnotations` and `secretLabels` land on that Secret, so it can
+goes away. Spec changes update the remote key in place, including cleared settings.
+Expiry changes only when `duration` changes. Existing keys apply their duration
+once on upgrade.
+
+`secretAnnotations` and `secretLabels` land on that Secret, so it can
 carry metadata other controllers act on — notably kubernetes-reflector's
 `reflection-allowed`, which has to sit on the _source_ Secret for the key to be
 mirrored into another namespace:

@@ -11,6 +11,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testAppMetadataValue  = "example"
+	testModelsJSONField   = "models"
+	testKeyJSONField      = "key"
+	testKeyAlias          = "application"
+	testAppMetadataField  = "app"
+	testLiveKey           = "sk-live"
+	testKeyAliasJSONField = "key_alias"
+	testUpdatedModel      = "new"
+)
+
 func TestClient_ListModelsParsesDataAndAuth(t *testing.T) {
 	var auth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,16 +84,16 @@ func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		calls = append(calls, call{path: r.URL.Path, body: body})
 		if r.URL.Path == "/key/generate" {
-			_ = json.NewEncoder(w).Encode(map[string]string{"key": "sk-generated"})
+			_ = json.NewEncoder(w).Encode(map[string]string{testKeyJSONField: "sk-generated"})
 		}
 	}))
 	defer srv.Close()
 
 	c := New(srv.URL, "master", srv.Client())
 	generated, err := c.GenerateVirtualKey(context.Background(), VirtualKeyRequest{
-		KeyAlias: "application",
+		KeyAlias: testKeyAlias,
 		Models:   []string{"openai/gpt-5"},
-		Metadata: map[string]string{"app": "example"},
+		Metadata: map[string]string{testAppMetadataField: testAppMetadataValue},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "sk-generated", generated.Key)
@@ -90,8 +101,8 @@ func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
 
 	require.Len(t, calls, 2)
 	assert.Equal(t, "/key/generate", calls[0].path)
-	assert.Equal(t, "application", calls[0].body["key_alias"])
-	assert.Equal(t, []any{"openai/gpt-5"}, calls[0].body["models"])
+	assert.Equal(t, testKeyAlias, calls[0].body[testKeyAliasJSONField])
+	assert.Equal(t, []any{"openai/gpt-5"}, calls[0].body[testModelsJSONField])
 	assert.Equal(t, "/key/delete", calls[1].path)
 	assert.Equal(t, []any{"sk-generated"}, calls[1].body["keys"])
 }
@@ -100,8 +111,12 @@ func TestClient_GetAndUpdateVirtualKey(t *testing.T) {
 	var update map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/key/info" {
-			assert.Equal(t, "sk-live", r.URL.Query().Get("key"))
-			_ = json.NewEncoder(w).Encode(map[string]any{"key_alias": "application", "models": []string{"old"}})
+			assert.Equal(t, testLiveKey, r.URL.Query().Get(testKeyJSONField))
+			assert.Equal(t, http.MethodGet, r.Method)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				testKeyJSONField: testLiveKey,
+				"info":           map[string]any{testKeyAliasJSONField: testKeyAlias, testModelsJSONField: []string{"old"}},
+			})
 			return
 		}
 		require.Equal(t, "/key/update", r.URL.Path)
@@ -110,12 +125,75 @@ func TestClient_GetAndUpdateVirtualKey(t *testing.T) {
 	defer srv.Close()
 
 	c := New(srv.URL, "master", srv.Client())
-	live, err := c.GetVirtualKey(context.Background(), "sk-live")
+	live, err := c.GetVirtualKey(context.Background(), testLiveKey)
 	require.NoError(t, err)
-	assert.Equal(t, "application", live.KeyAlias)
-	require.NoError(t, c.UpdateVirtualKey(context.Background(), "sk-live", VirtualKeyRequest{Models: []string{"new"}}))
-	assert.Equal(t, "sk-live", update["key"])
-	assert.Equal(t, []any{"new"}, update["models"])
+	assert.Equal(t, testKeyAlias, live.KeyAlias)
+	assert.Equal(t, []string{"old"}, live.Models)
+	require.NoError(t, c.UpdateVirtualKey(context.Background(), testLiveKey, VirtualKeyRequest{Models: []string{testUpdatedModel}}, false))
+	assert.Equal(t, testLiveKey, update[testKeyJSONField])
+	assert.Equal(t, []any{testUpdatedModel}, update[testModelsJSONField])
+}
+
+func TestClient_GetVirtualKeyRejectsMissingInfo(t *testing.T) {
+	for _, body := range []string{`{}`, `{"info":null}`, `{"key_alias":"application"}`} {
+		t.Run(body, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			defer srv.Close()
+			_, err := New(srv.URL, "master", srv.Client()).GetVirtualKey(t.Context(), testLiveKey)
+			require.ErrorContains(t, err, "response has no info")
+		})
+	}
+}
+
+func TestClient_UpdateVirtualKeyClearsSettings(t *testing.T) {
+	tests := []struct {
+		name    string
+		request VirtualKeyRequest
+	}{
+		{name: "nil collections"},
+		{name: "empty collections", request: VirtualKeyRequest{
+			Models: []string{}, Aliases: map[string]string{}, Metadata: map[string]string{},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			}))
+			defer srv.Close()
+			require.NoError(t, New(srv.URL, "master", srv.Client()).UpdateVirtualKey(t.Context(), testLiveKey, tt.request, true))
+			assert.Equal(t, map[string]any{
+				testKeyJSONField: testLiveKey, testModelsJSONField: []any{}, "aliases": map[string]any{}, "metadata": map[string]any{},
+				testKeyAliasJSONField: nil, "user_id": nil, teamIDJSONKey: nil, "duration": nil, "budget_duration": nil,
+				"max_budget": nil, "max_parallel_requests": nil, "tpm_limit": nil, "rpm_limit": nil,
+			}, body)
+		})
+	}
+}
+
+func TestClient_UpdateVirtualKeySendsValuesAndPreservesExpiry(t *testing.T) {
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+	}))
+	defer srv.Close()
+	request := VirtualKeyRequest{
+		KeyAlias: testKeyAlias, Models: []string{testUpdatedModel}, Aliases: map[string]string{"alias": testUpdatedModel},
+		UserID: "user", TeamID: "team", Duration: "30d", BudgetDuration: "1d",
+		MaxBudget: new(12.5), MaxParallelRequests: new(int64(3)), TPMLimit: new(int64(100)), RPMLimit: new(int64(0)),
+		Metadata: map[string]string{testAppMetadataField: testAppMetadataValue},
+	}
+	require.NoError(t, New(srv.URL, "master", srv.Client()).UpdateVirtualKey(t.Context(), testLiveKey, request, false))
+	assert.Equal(t, map[string]any{
+		testKeyJSONField: testLiveKey, testKeyAliasJSONField: testKeyAlias, testModelsJSONField: []any{testUpdatedModel},
+		"aliases": map[string]any{"alias": testUpdatedModel}, "user_id": "user", teamIDJSONKey: "team", "budget_duration": "1d",
+		"max_budget": 12.5, "max_parallel_requests": float64(3), "tpm_limit": float64(100), "rpm_limit": float64(0),
+		"metadata": map[string]any{testAppMetadataField: testAppMetadataValue},
+	}, body)
 }
 
 func TestClient_ManageTeam(t *testing.T) {
@@ -128,10 +206,10 @@ func TestClient_ManageTeam(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
 		if r.URL.Path == "/team/new" {
-			_ = json.NewEncoder(w).Encode(map[string]string{"team_id": teamID})
+			_ = json.NewEncoder(w).Encode(map[string]string{teamIDJSONKey: teamID})
 		}
 		if r.URL.Path == "/team/info" {
-			_ = json.NewEncoder(w).Encode(map[string]any{"team_info": map[string]any{"team_id": teamID, "members_with_roles": []any{}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"team_info": map[string]any{teamIDJSONKey: teamID, "members_with_roles": []any{}}})
 		}
 	}))
 	defer srv.Close()

@@ -35,7 +35,8 @@ const (
 	// Prefix the bookkeeping annotations share. The spec may not declare keys under
 	// it: recordManaged writes them last, so a collision would silently discard the
 	// user's value on every reconcile.
-	managedKeysPrefix = "litellm.home-operations.com/managed-"
+	managedKeysPrefix         = "litellm.home-operations.com/managed-"
+	managedDurationAnnotation = managedKeysPrefix + "duration"
 )
 
 // LiteLLMVirtualKeyReconciler creates LiteLLM virtual keys and stores them in
@@ -51,8 +52,7 @@ type LiteLLMVirtualKeyReconciler struct {
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmproxies,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile creates the remote key and its Secret once, then deletes the remote
-// key before allowing a deleted LiteLLMVirtualKey to disappear.
+// Reconcile updates key settings and deletes the key when the resource is removed.
 func (r *LiteLLMVirtualKeyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var virtualKey litellmv1alpha1.LiteLLMVirtualKey
 	if err := r.Get(ctx, req.NamespacedName, &virtualKey); err != nil {
@@ -101,11 +101,23 @@ func (r *LiteLLMVirtualKeyReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		if err != nil {
 			return ctrl.Result{}, r.markFailed(ctx, &virtualKey, "GetFailed", err.Error())
 		}
-		if virtualKeyRequestsEqual(live, requestBody) {
+		// LiteLLM returns expires rather than the duration used to calculate it.
+		updateDuration := secret.Annotations[managedDurationAnnotation] != requestBody.Duration ||
+			(live.Expires == nil) != (requestBody.Duration == "")
+		if virtualKeyRequestsEqual(live, requestBody) && !updateDuration {
 			return ctrl.Result{}, r.markReady(ctx, &virtualKey)
 		}
-		if err := admin.UpdateVirtualKey(ctx, string(secret.Data[virtualKey.SecretDataKey()]), requestBody); err != nil {
+		if err := admin.UpdateVirtualKey(ctx, string(secret.Data[virtualKey.SecretDataKey()]), requestBody, updateDuration); err != nil {
 			return ctrl.Result{}, r.markFailed(ctx, &virtualKey, "UpdateFailed", err.Error())
+		}
+		if updateDuration {
+			if secret.Annotations == nil {
+				secret.Annotations = make(map[string]string)
+			}
+			secret.Annotations[managedDurationAnnotation] = requestBody.Duration
+			if err := r.Update(ctx, secret); err != nil {
+				return ctrl.Result{}, r.markFailed(ctx, &virtualKey, "SecretUpdateFailed", err.Error())
+			}
 		}
 		return ctrl.Result{}, r.markReady(ctx, &virtualKey)
 	case !apierrors.IsNotFound(err):
@@ -133,6 +145,10 @@ func (r *LiteLLMVirtualKeyReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		Data:       map[string][]byte{virtualKey.SecretDataKey(): []byte(generated.Key)},
 	}
 	applySecretMetadata(secret, &virtualKey)
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[managedDurationAnnotation] = virtualKey.Spec.Duration
 	if err := controllerutil.SetControllerReference(&virtualKey, secret, r.Scheme); err != nil {
 		return ctrl.Result{}, fmt.Errorf("set output Secret owner: %w", err)
 	}
@@ -224,15 +240,15 @@ func recordManaged(annotations map[string]string, name string, keys []string) {
 
 func virtualKeyRequestsEqual(live litellmclient.VirtualKey, desired litellmclient.VirtualKeyRequest) bool {
 	return live.KeyAlias == desired.KeyAlias &&
-		reflect.DeepEqual(live.Models, desired.Models) &&
-		reflect.DeepEqual(live.Aliases, desired.Aliases) &&
+		slices.Equal(live.Models, desired.Models) &&
+		maps.Equal(live.Aliases, desired.Aliases) &&
 		live.UserID == desired.UserID && live.TeamID == desired.TeamID &&
-		live.Duration == desired.Duration && reflect.DeepEqual(live.MaxBudget, desired.MaxBudget) &&
+		reflect.DeepEqual(live.MaxBudget, desired.MaxBudget) &&
 		live.BudgetDuration == desired.BudgetDuration &&
 		reflect.DeepEqual(live.MaxParallelRequests, desired.MaxParallelRequests) &&
 		reflect.DeepEqual(live.TPMLimit, desired.TPMLimit) &&
 		reflect.DeepEqual(live.RPMLimit, desired.RPMLimit) &&
-		reflect.DeepEqual(live.Metadata, desired.Metadata)
+		maps.Equal(live.Metadata, desired.Metadata)
 }
 
 func (r *LiteLLMVirtualKeyReconciler) reconcileDelete(ctx context.Context, virtualKey *litellmv1alpha1.LiteLLMVirtualKey) error {
