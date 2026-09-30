@@ -1,0 +1,77 @@
+---
+suite: llmkube auto-registration
+templates:
+  - templates/rbac.tpl
+  - templates/deployment.tpl
+tests:
+  - it: keeps model cleanup permission when auto-registration is disabled
+    template: templates/rbac.tpl
+    documentIndex: 0
+    set:
+      llmkube.autoRegister: false
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [litellm.home-operations.com]
+            resources: [litellmmodels]
+            verbs: [delete]
+      - notContains:
+          path: rules
+          content:
+            apiGroups: [litellm.home-operations.com]
+            resources: [litellmmodels]
+            verbs: [create, patch, update]
+      - notContains:
+          path: rules
+          content:
+            apiGroups: [inference.llmkube.dev]
+            resources: [inferenceservices, models]
+            verbs: [get, list, watch]
+
+  - it: grants registration permissions when enabled
+    template: templates/rbac.tpl
+    documentIndex: 0
+    set:
+      llmkube.autoRegister: true
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [litellm.home-operations.com]
+            resources: [litellmmodels]
+            verbs: [delete]
+      - contains:
+          path: rules
+          content:
+            apiGroups: [litellm.home-operations.com]
+            resources: [litellmmodels]
+            verbs: [create, patch, update]
+      - contains:
+          path: rules
+          content:
+            apiGroups: [inference.llmkube.dev]
+            resources: [inferenceservices, models]
+            verbs: [get, list, watch]
+
+  - it: enables registration in the manager when configured
+    template: templates/deployment.tpl
+    set:
+      llmkube.autoRegister: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENABLE_LLMKUBE_AUTOREGISTER
+            value: "true"
+
+  - it: disables registration in the manager when configured
+    template: templates/deployment.tpl
+    set:
+      llmkube.autoRegister: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENABLE_LLMKUBE_AUTOREGISTER
+            value: "true"

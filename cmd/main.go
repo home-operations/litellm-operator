@@ -161,6 +161,11 @@ func main() {
 
 	if autoRegisterEnabled() {
 		setupLLMKubeAutoRegister(mgr)
+	} else if err := (&controller.LLMKubeModelCleanupReconciler{
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "LLMKubeModelCleanup")
+		os.Exit(1)
 	}
 
 	certReady := make(chan struct{})

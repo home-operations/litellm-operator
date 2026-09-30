@@ -149,7 +149,7 @@
       "properties": {
         "autoRegister": {
           "default": false,
-          "description": "Auto-register LiteLLMModels from LLMKube (inference.llmkube.dev)\nInferenceServices. When a service reaches Ready, the operator creates a\nmatching LiteLLMModel in the same namespace, which proxies adopt as usual.\nAdds RBAC for inference.llmkube.dev and sets ENABLE_LLMKUBE_AUTOREGISTER.\nNo-op (logs a warning) if the LLMKube CRDs are not installed.",
+          "description": "Auto-register LiteLLMModels from LLMKube (inference.llmkube.dev)\nInferenceServices. When a service reaches Ready, the operator creates a\nmatching LiteLLMModel in the same namespace, which proxies adopt as usual.\nSetting this to false deletes auto-registered models, leaving manual models\nand the source InferenceServices in place.\nAdds RBAC for inference.llmkube.dev and sets ENABLE_LLMKUBE_AUTOREGISTER.\nAuto-registration is skipped (with a warning) if the LLMKube CRDs are missing.",
           "title": "autoRegister",
           "type": "boolean"
         }

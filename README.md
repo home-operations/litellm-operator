@@ -232,11 +232,17 @@ deleted. The projection only asserts what LLMKube can report truthfully:
 The generated model carries `litellm.home-operations.com/managed-by: llmkube`, so
 a proxy can target these models specifically via `modelSelector`, and the
 operator never overwrites a same-named model it does not own (it logs and skips).
-The model is removed only when the `InferenceService` reaches a terminal phase
+While auto-registration is enabled, the model is removed when the
+`InferenceService` reaches a terminal phase
 (`Failed`/`Stopped`); transient dips (`Progressing`, a rolling update) leave it in
 place so a routine pod rollout does not churn the proxy config. A complete
 example is in `config/samples/llmkube_autoregister.yaml`. Installing the LLMKube
 CRDs after the operator is running requires an operator restart to pick them up.
+
+Setting `llmkube.autoRegister=false` removes the auto-registered `LiteLLMModel`
+resources after the operator restarts. Manually managed models and the source
+`InferenceService` resources remain in place. Cleanup also works without the
+LLMKube CRDs installed.
 
 ## Install
 

@@ -24,6 +24,12 @@ rules:
 - apiGroups:
   - litellm.home-operations.com
   resources:
+  - litellmmodels
+  verbs:
+  - delete
+- apiGroups:
+  - litellm.home-operations.com
+  resources:
   - litellmteams
   - litellmvirtualkeys
   verbs:
@@ -114,7 +120,6 @@ rules:
   - litellmmodels
   verbs:
   - create
-  - delete
   - patch
   - update
 {{- end }}
