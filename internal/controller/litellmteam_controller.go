@@ -148,6 +148,7 @@ func (r *LiteLLMTeamReconciler) adminClient(ctx context.Context, team *litellmv1
 
 func teamRequest(team *litellmv1alpha1.LiteLLMTeam) (litellmclient.TeamRequest, error) {
 	out := litellmclient.TeamRequest{TeamID: team.DesiredTeamID(), TeamAlias: team.Spec.Alias, Models: team.Spec.Models, BudgetDuration: team.Spec.BudgetDuration, TPMLimit: team.Spec.TPMLimit, RPMLimit: team.Spec.RPMLimit, Metadata: team.Spec.Metadata, Blocked: team.Spec.Blocked}
+	out.ObjectPermission = &litellmclient.TeamObjectPermission{MCPServers: team.Spec.MCPServers}
 	for _, m := range team.Spec.Members {
 		if memberID(m.UserID, m.UserEmail) == "" {
 			return out, fmt.Errorf("member requires userID or userEmail")

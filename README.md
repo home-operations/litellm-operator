@@ -145,6 +145,27 @@ operator wires env vars onto the Deployment and never reads secret values itself
 The operator only manages models it created (tagged in `model_info`), leaving
 UI- or hand-added models alone.
 
+## Teams
+
+`LiteLLMTeam.spec.mcpServers` assigns MCP server IDs or aliases to a team through
+LiteLLM's `object_permission.mcp_servers` field. Spec changes update the team in
+place. Removing the field or setting it to `[]` clears team-level server
+assignments while preserving other object permissions. Use LiteLLM's
+`no-mcp-servers` sentinel to deny MCP access.
+
+```yaml
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMTeam
+metadata:
+  name: apps
+  namespace: ai
+spec:
+  proxyRef: main
+  mcpServers:
+    - ha-mcp
+    - context7
+```
+
 ## Virtual keys
 
 A `LiteLLMVirtualKey` mints a key through the proxy's admin API and writes it to a
@@ -152,6 +173,26 @@ Secret it owns in the same namespace, deleting the remote key when the resource
 goes away. Spec changes update the remote key in place, including cleared settings.
 Expiry changes only when `duration` changes. Existing keys apply their duration
 once on upgrade.
+
+`spec.mcpToolsets` assigns MCP toolset IDs to the key through LiteLLM's
+`object_permission.mcp_toolsets` field. Reconciliation restores assignments that
+drift. Removing the field or setting it to `[]` clears key-level toolset
+assignments; LiteLLM's other MCP permissions and inheritance rules still apply.
+
+```yaml
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: hermes
+  namespace: ai
+spec:
+  proxyRef: main
+  secretName: hermes-key
+  models:
+    - gpt-5.6-terra
+  mcpToolsets:
+    - litellm # Use the toolset ID returned by LiteLLM's /v1/mcp/toolset API.
+```
 
 `secretAnnotations` and `secretLabels` land on that Secret, so it can
 carry metadata other controllers act on — notably kubernetes-reflector's

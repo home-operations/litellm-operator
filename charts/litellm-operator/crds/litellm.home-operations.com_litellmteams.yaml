@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.21.0
+    controller-gen.kubebuilder.io/version: v0.22.0
   name: litellmteams.litellm.home-operations.com
 spec:
   group: litellm.home-operations.com
@@ -62,6 +62,14 @@ spec:
                 description: MaxBudget is the maximum spend allowed, expressed as
                   a decimal string.
                 type: string
+              mcpServers:
+                description: |-
+                  MCPServers lists the LiteLLM MCP server IDs or aliases assigned to this team.
+                  An empty list clears team-level server assignments; other MCP permissions still apply.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               members:
                 description: Members is the complete set of team members and their
                   roles.

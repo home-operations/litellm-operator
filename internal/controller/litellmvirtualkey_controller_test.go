@@ -37,6 +37,7 @@ const (
 	testKeyAlias         = "application"
 	testKeyModel         = "openai/gpt-5"
 	testKeyTeam          = "team-a"
+	testKeyToolset       = "toolset-a"
 
 	testReflectorAnnotation = "reflector.v1.k8s.emberstack.com/reflection-allowed"
 	testReflectorAllowed    = "true"
@@ -53,13 +54,14 @@ const (
 
 // writeTestKeyInfo answers /key/info with the key testVirtualKey asks for, so the
 // reconciler sees the live key as already matching the spec.
-func writeTestKeyInfo(w http.ResponseWriter) {
+func writeTestKeyInfo(w http.ResponseWriter, toolsets ...string) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		testMasterSecretKey: testGeneratedKey,
 		testKeyInfoField: map[string]any{
-			"key_alias":        testKeyAlias,
-			testKeyModelsField: []string{testKeyModel},
-			"team_id":          testKeyTeam,
+			"key_alias":         testKeyAlias,
+			testKeyModelsField:  []string{testKeyModel},
+			"team_id":           testKeyTeam,
+			"object_permission": litellmclient.ObjectPermission{MCPToolsets: toolsets},
 		},
 	})
 }
@@ -69,7 +71,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileCreatesSecretOnce(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer master", r.Header.Get("Authorization"))
 		if r.URL.Path == testKeyInfoPath {
-			writeTestKeyInfo(w)
+			writeTestKeyInfo(w, testKeyToolset)
 			return
 		}
 		assert.Equal(t, "/key/generate", r.URL.Path)
@@ -81,6 +83,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileCreatesSecretOnce(t *testing.T) {
 	defer srv.Close()
 
 	key := testVirtualKey()
+	key.Spec.MCPToolsets = []string{testKeyToolset}
 	key.Spec.SecretAnnotations = map[string]string{testReflectorAnnotation: testReflectorAllowed}
 	key.Spec.SecretLabels = map[string]string{"app.kubernetes.io/part-of": testKeyAlias}
 	proxy := testVirtualKeyProxy(srv.URL)
@@ -108,6 +111,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileCreatesSecretOnce(t *testing.T) {
 	assert.Equal(t, testKeyAlias, requests[0]["key_alias"])
 	assert.Equal(t, []any{testKeyModel}, requests[0][testKeyModelsField])
 	assert.Equal(t, testKeyTeam, requests[0]["team_id"])
+	assert.Equal(t, map[string]any{"mcp_toolsets": []any{testKeyToolset}}, requests[0]["object_permission"])
 }
 
 func TestLiteLLMVirtualKeyReconciler_ReconcileUpdatesChangedSpec(t *testing.T) {
@@ -153,7 +157,37 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 	}{
 		{
 			name: "nil and empty collections match",
-			live: litellmclient.VirtualKey{Models: []string{}, Aliases: map[string]string{}, Metadata: map[string]string{}},
+			live: litellmclient.VirtualKey{
+				Models: []string{}, Aliases: map[string]string{}, Metadata: map[string]string{},
+				ObjectPermission: &litellmclient.ObjectPermission{MCPToolsets: []string{}},
+			},
+		},
+		{
+			name:    "matching toolsets",
+			live:    litellmclient.VirtualKey{ObjectPermission: &litellmclient.ObjectPermission{MCPToolsets: []string{testKeyToolset}}},
+			desired: litellmv1alpha1.LiteLLMVirtualKeySpec{MCPToolsets: []string{testKeyToolset}},
+		},
+		{
+			name:        "repair missing toolsets",
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{MCPToolsets: []string{testKeyToolset}},
+			wantUpdates: 1,
+		},
+		{
+			name:        "change toolsets",
+			live:        litellmclient.VirtualKey{ObjectPermission: &litellmclient.ObjectPermission{MCPToolsets: []string{testOldKeyValue}}},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{MCPToolsets: []string{testKeyToolset}},
+			wantUpdates: 1,
+		},
+		{
+			name:        "clear toolsets with empty list",
+			live:        litellmclient.VirtualKey{ObjectPermission: &litellmclient.ObjectPermission{MCPToolsets: []string{testKeyToolset}}},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{MCPToolsets: []string{}},
+			wantUpdates: 1,
+		},
+		{
+			name:        "clear toolsets with omitted field",
+			live:        litellmclient.VirtualKey{ObjectPermission: &litellmclient.ObjectPermission{MCPToolsets: []string{testKeyToolset}}},
+			wantUpdates: 1,
 		},
 		{
 			name:        "models change in place",
@@ -273,6 +307,9 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 			}
 			assert.Equal(t, key.Spec.KeyAlias, live.KeyAlias)
 			assert.ElementsMatch(t, key.Spec.Models, live.Models)
+			if live.ObjectPermission != nil {
+				assert.ElementsMatch(t, key.Spec.MCPToolsets, live.ObjectPermission.MCPToolsets)
+			}
 			assert.Equal(t, key.Spec.UserID, live.UserID)
 			assert.Equal(t, key.Spec.TeamID, live.TeamID)
 			assert.Equal(t, key.Spec.BudgetDuration, live.BudgetDuration)

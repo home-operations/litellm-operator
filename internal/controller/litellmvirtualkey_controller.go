@@ -239,8 +239,16 @@ func recordManaged(annotations map[string]string, name string, keys []string) {
 }
 
 func virtualKeyRequestsEqual(live litellmclient.VirtualKey, desired litellmclient.VirtualKeyRequest) bool {
+	var liveToolsets, desiredToolsets []string
+	if live.ObjectPermission != nil {
+		liveToolsets = live.ObjectPermission.MCPToolsets
+	}
+	if desired.ObjectPermission != nil {
+		desiredToolsets = desired.ObjectPermission.MCPToolsets
+	}
 	return live.KeyAlias == desired.KeyAlias &&
 		slices.Equal(live.Models, desired.Models) &&
+		slices.Equal(liveToolsets, desiredToolsets) &&
 		maps.Equal(live.Aliases, desired.Aliases) &&
 		live.UserID == desired.UserID && live.TeamID == desired.TeamID &&
 		reflect.DeepEqual(live.MaxBudget, desired.MaxBudget) &&
@@ -308,6 +316,7 @@ func virtualKeyRequest(key *litellmv1alpha1.LiteLLMVirtualKey) (litellmclient.Vi
 	request := litellmclient.VirtualKeyRequest{
 		KeyAlias:            key.Spec.KeyAlias,
 		Models:              key.Spec.Models,
+		ObjectPermission:    &litellmclient.ObjectPermission{MCPToolsets: key.Spec.MCPToolsets},
 		Aliases:             key.Spec.Aliases,
 		UserID:              key.Spec.UserID,
 		TeamID:              key.Spec.TeamID,

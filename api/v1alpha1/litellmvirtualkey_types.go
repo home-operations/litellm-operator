@@ -43,6 +43,12 @@ type LiteLLMVirtualKeySpec struct {
 	// +optional
 	Models []string `json:"models,omitempty"`
 
+	// MCPToolsets lists the LiteLLM MCP toolset IDs assigned to this key.
+	// An empty list clears key-level toolset assignments; other MCP permissions still apply.
+	// +listType=atomic
+	// +optional
+	MCPToolsets []string `json:"mcpToolsets,omitempty"`
+
 	// Aliases maps model aliases to their target model names.
 	// +optional
 	Aliases map[string]string `json:"aliases,omitempty"`

@@ -813,6 +813,11 @@ func (in *LiteLLMTeamSpec) DeepCopyInto(out *LiteLLMTeamSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.MCPServers != nil {
+		in, out := &in.MCPServers, &out.MCPServers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.TPMLimit != nil {
 		in, out := &in.TPMLimit, &out.TPMLimit
 		*out = new(int64)
@@ -947,6 +952,11 @@ func (in *LiteLLMVirtualKeySpec) DeepCopyInto(out *LiteLLMVirtualKeySpec) {
 	}
 	if in.Models != nil {
 		in, out := &in.Models, &out.Models
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.MCPToolsets != nil {
+		in, out := &in.MCPToolsets, &out.MCPToolsets
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

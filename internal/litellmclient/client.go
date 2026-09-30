@@ -37,10 +37,16 @@ type Model struct {
 	ModelInfo     map[string]any `json:"model_info,omitempty"`
 }
 
+// ObjectPermission contains the MCP toolset assignments managed on a virtual key.
+type ObjectPermission struct {
+	MCPToolsets []string `json:"mcp_toolsets"`
+}
+
 // VirtualKeyRequest describes a virtual key accepted by POST /key/generate.
 type VirtualKeyRequest struct {
 	KeyAlias            string            `json:"key_alias,omitempty"`
 	Models              []string          `json:"models,omitempty"`
+	ObjectPermission    *ObjectPermission `json:"object_permission,omitempty"`
 	Aliases             map[string]string `json:"aliases,omitempty"`
 	UserID              string            `json:"user_id,omitempty"`
 	TeamID              string            `json:"team_id,omitempty"`
@@ -58,6 +64,7 @@ type VirtualKey struct {
 	Key                 string            `json:"key,omitempty"`
 	KeyAlias            string            `json:"key_alias,omitempty"`
 	Models              []string          `json:"models,omitempty"`
+	ObjectPermission    *ObjectPermission `json:"object_permission,omitempty"`
 	Aliases             map[string]string `json:"aliases,omitempty"`
 	UserID              string            `json:"user_id,omitempty"`
 	TeamID              string            `json:"team_id,omitempty"`
@@ -78,24 +85,31 @@ type TeamMember struct {
 	Role      string `json:"role"`
 }
 
+// TeamObjectPermission contains the MCP server assignments managed on a team.
+type TeamObjectPermission struct {
+	MCPServers []string `json:"mcp_servers"`
+}
+
 // TeamRequest describes a team accepted by LiteLLM's team management endpoints.
 type TeamRequest struct {
-	TeamID         string            `json:"team_id"`
-	TeamAlias      string            `json:"team_alias,omitempty"`
-	Members        []TeamMember      `json:"members_with_roles,omitempty"`
-	Models         []string          `json:"models"`
-	MaxBudget      *float64          `json:"max_budget,omitempty"`
-	BudgetDuration string            `json:"budget_duration,omitempty"`
-	TPMLimit       *int64            `json:"tpm_limit,omitempty"`
-	RPMLimit       *int64            `json:"rpm_limit,omitempty"`
-	Metadata       map[string]string `json:"metadata,omitempty"`
-	Blocked        *bool             `json:"blocked,omitempty"`
+	TeamID           string                `json:"team_id"`
+	TeamAlias        string                `json:"team_alias,omitempty"`
+	Members          []TeamMember          `json:"members_with_roles,omitempty"`
+	Models           []string              `json:"models"`
+	ObjectPermission *TeamObjectPermission `json:"object_permission,omitempty"`
+	MaxBudget        *float64              `json:"max_budget,omitempty"`
+	BudgetDuration   string                `json:"budget_duration,omitempty"`
+	TPMLimit         *int64                `json:"tpm_limit,omitempty"`
+	RPMLimit         *int64                `json:"rpm_limit,omitempty"`
+	Metadata         map[string]string     `json:"metadata,omitempty"`
+	Blocked          *bool                 `json:"blocked,omitempty"`
 }
 
 // Team is the subset of a LiteLLM team response used by the operator.
 type Team struct {
-	TeamID  string       `json:"team_id"`
-	Members []TeamMember `json:"members_with_roles"`
+	TeamID           string                `json:"team_id"`
+	Members          []TeamMember          `json:"members_with_roles"`
+	ObjectPermission *TeamObjectPermission `json:"object_permission,omitempty"`
 }
 
 // ModelID returns the server-assigned id from model_info, if present.
@@ -135,6 +149,9 @@ func (c *Client) DeleteModel(ctx context.Context, id string) error {
 
 // GenerateVirtualKey creates a virtual key (POST /key/generate).
 func (c *Client) GenerateVirtualKey(ctx context.Context, key VirtualKeyRequest) (VirtualKey, error) {
+	if key.ObjectPermission != nil && key.ObjectPermission.MCPToolsets == nil {
+		key.ObjectPermission = &ObjectPermission{MCPToolsets: []string{}}
+	}
 	var out VirtualKey
 	if err := c.do(ctx, http.MethodPost, "/key/generate", key, &out); err != nil {
 		return VirtualKey{}, err
@@ -188,6 +205,13 @@ func (c *Client) UpdateVirtualKey(ctx context.Context, key string, request Virtu
 			body[name] = value
 		}
 	}
+	if request.ObjectPermission != nil {
+		permission := *request.ObjectPermission
+		if permission.MCPToolsets == nil {
+			permission.MCPToolsets = []string{}
+		}
+		body["object_permission"] = permission
+	}
 	if updateDuration {
 		body["duration"] = nil
 		if request.Duration != "" {
@@ -204,6 +228,9 @@ func (c *Client) DeleteVirtualKey(ctx context.Context, key string) error {
 
 // CreateTeam creates a LiteLLM team (POST /team/new).
 func (c *Client) CreateTeam(ctx context.Context, team TeamRequest) (Team, error) {
+	if team.ObjectPermission != nil && team.ObjectPermission.MCPServers == nil {
+		team.ObjectPermission = &TeamObjectPermission{MCPServers: []string{}}
+	}
 	var out Team
 	err := c.do(ctx, http.MethodPost, "/team/new", team, &out)
 	return out, err
@@ -211,6 +238,9 @@ func (c *Client) CreateTeam(ctx context.Context, team TeamRequest) (Team, error)
 
 // UpdateTeam updates a LiteLLM team (POST /team/update).
 func (c *Client) UpdateTeam(ctx context.Context, team TeamRequest) error {
+	if team.ObjectPermission != nil && team.ObjectPermission.MCPServers == nil {
+		team.ObjectPermission = &TeamObjectPermission{MCPServers: []string{}}
+	}
 	return c.do(ctx, http.MethodPost, "/team/update", team, nil)
 }
 

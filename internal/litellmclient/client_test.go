@@ -12,14 +12,18 @@ import (
 )
 
 const (
-	testAppMetadataValue  = "example"
-	testModelsJSONField   = "models"
-	testKeyJSONField      = "key"
-	testKeyAlias          = "application"
-	testAppMetadataField  = "app"
-	testLiveKey           = "sk-live"
-	testKeyAliasJSONField = "key_alias"
-	testUpdatedModel      = "new"
+	testAppMetadataValue      = "example"
+	testModelsJSONField       = "models"
+	testKeyJSONField          = "key"
+	testKeyAlias              = "application"
+	testAppMetadataField      = "app"
+	testLiveKey               = "sk-live"
+	testKeyAliasJSONField     = "key_alias"
+	testUpdatedModel          = "new"
+	testMCPToolset            = "toolset-a"
+	testMCPToolsetsField      = "mcp_toolsets"
+	testObjectPermissionField = "object_permission"
+	testTeamInfoPath          = "/team/info"
 )
 
 func TestClient_ListModelsParsesDataAndAuth(t *testing.T) {
@@ -91,9 +95,10 @@ func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
 
 	c := New(srv.URL, "master", srv.Client())
 	generated, err := c.GenerateVirtualKey(context.Background(), VirtualKeyRequest{
-		KeyAlias: testKeyAlias,
-		Models:   []string{"openai/gpt-5"},
-		Metadata: map[string]string{testAppMetadataField: testAppMetadataValue},
+		KeyAlias:         testKeyAlias,
+		Models:           []string{"openai/gpt-5"},
+		ObjectPermission: &ObjectPermission{MCPToolsets: []string{testMCPToolset}},
+		Metadata:         map[string]string{testAppMetadataField: testAppMetadataValue},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "sk-generated", generated.Key)
@@ -103,6 +108,7 @@ func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
 	assert.Equal(t, "/key/generate", calls[0].path)
 	assert.Equal(t, testKeyAlias, calls[0].body[testKeyAliasJSONField])
 	assert.Equal(t, []any{"openai/gpt-5"}, calls[0].body[testModelsJSONField])
+	assert.Equal(t, map[string]any{testMCPToolsetsField: []any{testMCPToolset}}, calls[0].body[testObjectPermissionField])
 	assert.Equal(t, "/key/delete", calls[1].path)
 	assert.Equal(t, []any{"sk-generated"}, calls[1].body["keys"])
 }
@@ -115,7 +121,10 @@ func TestClient_GetAndUpdateVirtualKey(t *testing.T) {
 			assert.Equal(t, http.MethodGet, r.Method)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				testKeyJSONField: testLiveKey,
-				"info":           map[string]any{testKeyAliasJSONField: testKeyAlias, testModelsJSONField: []string{"old"}},
+				"info": map[string]any{
+					testKeyAliasJSONField: testKeyAlias, testModelsJSONField: []string{"old"},
+					testObjectPermissionField: map[string]any{testMCPToolsetsField: []string{testMCPToolset}, "mcp_servers": []string{"server-a"}},
+				},
 			})
 			return
 		}
@@ -129,9 +138,14 @@ func TestClient_GetAndUpdateVirtualKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testKeyAlias, live.KeyAlias)
 	assert.Equal(t, []string{"old"}, live.Models)
-	require.NoError(t, c.UpdateVirtualKey(context.Background(), testLiveKey, VirtualKeyRequest{Models: []string{testUpdatedModel}}, false))
+	require.NotNil(t, live.ObjectPermission)
+	assert.Equal(t, []string{testMCPToolset}, live.ObjectPermission.MCPToolsets)
+	require.NoError(t, c.UpdateVirtualKey(context.Background(), testLiveKey, VirtualKeyRequest{
+		Models: []string{testUpdatedModel}, ObjectPermission: &ObjectPermission{MCPToolsets: []string{testMCPToolset}},
+	}, false))
 	assert.Equal(t, testLiveKey, update[testKeyJSONField])
 	assert.Equal(t, []any{testUpdatedModel}, update[testModelsJSONField])
+	assert.Equal(t, map[string]any{testMCPToolsetsField: []any{testMCPToolset}}, update[testObjectPermissionField])
 }
 
 func TestClient_GetVirtualKeyRejectsMissingInfo(t *testing.T) {
@@ -143,6 +157,70 @@ func TestClient_GetVirtualKeyRejectsMissingInfo(t *testing.T) {
 			defer srv.Close()
 			_, err := New(srv.URL, "master", srv.Client()).GetVirtualKey(t.Context(), testLiveKey)
 			require.ErrorContains(t, err, "response has no info")
+		})
+	}
+}
+
+func TestClient_VirtualKeyToolsetRequests(t *testing.T) {
+	tests := []struct {
+		name       string
+		permission *ObjectPermission
+		want       map[string]any
+	}{
+		{name: "omitted permission"},
+		{name: "nil list", permission: &ObjectPermission{}, want: map[string]any{testMCPToolsetsField: []any{}}},
+		{name: "empty list", permission: &ObjectPermission{MCPToolsets: []string{}}, want: map[string]any{testMCPToolsetsField: []any{}}},
+		{name: "assigned toolsets", permission: &ObjectPermission{MCPToolsets: []string{testMCPToolset}},
+			want: map[string]any{testMCPToolsetsField: []any{testMCPToolset}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				calls = append(calls, body)
+				_, _ = w.Write([]byte(`{"key":"sk-generated"}`))
+			}))
+			defer srv.Close()
+			c := New(srv.URL, "master", srv.Client())
+			request := VirtualKeyRequest{ObjectPermission: tt.permission}
+			wasNil := tt.permission != nil && tt.permission.MCPToolsets == nil
+			_, err := c.GenerateVirtualKey(t.Context(), request)
+			require.NoError(t, err)
+			require.NoError(t, c.UpdateVirtualKey(t.Context(), testLiveKey, request, false))
+			require.Len(t, calls, 2)
+			for _, body := range calls {
+				assert.NotContains(t, body, testMCPToolsetsField)
+				if tt.want == nil {
+					assert.NotContains(t, body, testObjectPermissionField)
+				} else {
+					assert.Equal(t, tt.want, body[testObjectPermissionField])
+				}
+			}
+			if wasNil {
+				assert.Nil(t, request.ObjectPermission.MCPToolsets)
+			}
+		})
+	}
+}
+
+func TestClient_GetVirtualKeyToolsets(t *testing.T) {
+	for _, body := range []string{
+		`{"info":{}}`, `{"info":{"object_permission":null}}`,
+		`{"info":{"object_permission":{}}}`, `{"info":{"object_permission":{"mcp_toolsets":null}}}`,
+		`{"info":{"object_permission":{"mcp_toolsets":[]}}}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			defer srv.Close()
+			key, err := New(srv.URL, "master", srv.Client()).GetVirtualKey(t.Context(), testLiveKey)
+			require.NoError(t, err)
+			if key.ObjectPermission != nil {
+				assert.Empty(t, key.ObjectPermission.MCPToolsets)
+			}
 		})
 	}
 }
@@ -208,7 +286,7 @@ func TestClient_ManageTeam(t *testing.T) {
 		if r.URL.Path == "/team/new" {
 			_ = json.NewEncoder(w).Encode(map[string]string{teamIDJSONKey: teamID})
 		}
-		if r.URL.Path == "/team/info" {
+		if r.URL.Path == testTeamInfoPath {
 			_ = json.NewEncoder(w).Encode(map[string]any{"team_info": map[string]any{teamIDJSONKey: teamID, "members_with_roles": []any{}}})
 		}
 	}))
@@ -225,6 +303,66 @@ func TestClient_ManageTeam(t *testing.T) {
 	require.NoError(t, c.DeleteTeamMember(context.Background(), team.TeamID, TeamMember{UserID: userID}))
 	require.NoError(t, c.DeleteTeam(context.Background(), team.TeamID))
 	assert.Equal(t, []string{"/team/new", "/team/update", "/team/info", "/team/member_add", "/team/member_delete", "/team/delete"}, paths)
+}
+
+func TestClient_TeamMCPServers(t *testing.T) {
+	const serversField = "mcp_servers"
+	const teamID = "platform"
+	tests := []struct {
+		name       string
+		permission *TeamObjectPermission
+		want       map[string]any
+	}{
+		{name: "omitted permission"},
+		{name: "nil list", permission: &TeamObjectPermission{}, want: map[string]any{serversField: []any{}}},
+		{name: "empty list", permission: &TeamObjectPermission{MCPServers: []string{}}, want: map[string]any{serversField: []any{}}},
+		{name: "assigned servers", permission: &TeamObjectPermission{MCPServers: []string{"ha-mcp", "context7"}},
+			want: map[string]any{serversField: []any{"ha-mcp", "context7"}}},
+		{name: "special server name", permission: &TeamObjectPermission{MCPServers: []string{"no-mcp-servers"}},
+			want: map[string]any{serversField: []any{"no-mcp-servers"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == testTeamInfoPath {
+					_ = json.NewEncoder(w).Encode(map[string]any{"team_info": map[string]any{
+						teamIDJSONKey: teamID, testObjectPermissionField: tt.want,
+					}})
+					return
+				}
+				var body map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				calls = append(calls, body)
+				_ = json.NewEncoder(w).Encode(map[string]string{teamIDJSONKey: teamID})
+			}))
+			defer srv.Close()
+			c := New(srv.URL, "master", srv.Client())
+			request := TeamRequest{TeamID: teamID, ObjectPermission: tt.permission}
+			wasNil := tt.permission != nil && tt.permission.MCPServers == nil
+			_, err := c.CreateTeam(t.Context(), request)
+			require.NoError(t, err)
+			require.NoError(t, c.UpdateTeam(t.Context(), request))
+			require.Len(t, calls, 2)
+			for _, body := range calls {
+				assert.NotContains(t, body, serversField)
+				if tt.want == nil {
+					assert.NotContains(t, body, testObjectPermissionField)
+				} else {
+					assert.Equal(t, tt.want, body[testObjectPermissionField])
+				}
+			}
+			if wasNil {
+				assert.Nil(t, request.ObjectPermission.MCPServers)
+			}
+			live, err := c.GetTeam(t.Context(), request.TeamID)
+			require.NoError(t, err)
+			if tt.permission != nil {
+				require.NotNil(t, live.ObjectPermission)
+				assert.ElementsMatch(t, tt.permission.MCPServers, live.ObjectPermission.MCPServers)
+			}
+		})
+	}
 }
 
 func TestClient_Non2xxIsError(t *testing.T) {

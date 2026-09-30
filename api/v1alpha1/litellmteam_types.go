@@ -31,6 +31,11 @@ type LiteLLMTeamSpec struct {
 	// +listType=atomic
 	// +optional
 	Models []string `json:"models,omitempty"`
+	// MCPServers lists the LiteLLM MCP server IDs or aliases assigned to this team.
+	// An empty list clears team-level server assignments; other MCP permissions still apply.
+	// +listType=atomic
+	// +optional
+	MCPServers []string `json:"mcpServers,omitempty"`
 	// MaxBudget is the maximum spend allowed, expressed as a decimal string.
 	// +optional
 	MaxBudget string `json:"maxBudget,omitempty"`
