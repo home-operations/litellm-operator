@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.0.21](https://github.com/home-operations/litellm-operator/compare/0.0.20...0.0.21) (2026-10-03)
+
+
+### Documentation
+
+* **agents:** point to the org AI Usage Policy instead of restating it ([85ba939](https://github.com/home-operations/litellm-operator/commit/85ba93994c7927892983c2e8c45ef469bdeb8562))
+* **agents:** update AI usage policy summary ([177997d](https://github.com/home-operations/litellm-operator/commit/177997dccea6ec3d0a2c3d2fffd1eb6551f382c9))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v4.3.0 → v5.0.0) ([#177](https://github.com/home-operations/litellm-operator/issues/177)) ([f01d55c](https://github.com/home-operations/litellm-operator/commit/f01d55c37c53dbfd960b138b189bbb8badcae24a))
+* **github-release:** update release helm-unittest/helm-unittest (v1.1.2 → v1.2.0) ([#176](https://github.com/home-operations/litellm-operator/issues/176)) ([98560e8](https://github.com/home-operations/litellm-operator/commit/98560e8fcdbbee3ecebef70094c9cc159b2f7779))
+* **github-release:** update release helm-unittest/helm-unittest (v1.2.0 → v1.2.1) ([#181](https://github.com/home-operations/litellm-operator/issues/181)) ([6f5ca6c](https://github.com/home-operations/litellm-operator/commit/6f5ca6c55a40c075890ff81d2f6728f766f1189a))
+* **go:** mark golang.org/x/sync as a direct dependency ([#182](https://github.com/home-operations/litellm-operator/issues/182)) ([d3d9e65](https://github.com/home-operations/litellm-operator/commit/d3d9e65916970d2403185f6f1e1a669c21f22108))
+* **mise:** update mise tools ([#179](https://github.com/home-operations/litellm-operator/issues/179)) ([3dcdd45](https://github.com/home-operations/litellm-operator/commit/3dcdd458373ea660d7daafedad323b5298cd8b67))
+* **mise:** update tool oxfmt (0.70.0 → 0.71.0) ([#175](https://github.com/home-operations/litellm-operator/issues/175)) ([caa9dfb](https://github.com/home-operations/litellm-operator/commit/caa9dfbbf348ed2e84a85795601220cca14e08bc))
+* **mise:** upgrade lockfile to format revision 3 ([9b1b629](https://github.com/home-operations/litellm-operator/commit/9b1b629be9c765a5d51a9999338b5e008d46da74))
+
 ## [0.0.20](https://github.com/home-operations/litellm-operator/compare/0.0.19...0.0.20) (2026-09-30)
 
 
