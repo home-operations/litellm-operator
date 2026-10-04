@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -129,13 +128,13 @@ func memberID(id, email string) string {
 
 func (r *LiteLLMTeamReconciler) adminClient(ctx context.Context, team *litellmv1alpha1.LiteLLMTeam) (*litellmclient.Client, error) {
 	var proxy litellmv1alpha1.LiteLLMProxy
-	if err := r.Get(ctx, types.NamespacedName{Namespace: team.Namespace, Name: team.Spec.ProxyRef}, &proxy); err != nil {
+	if err := r.Get(ctx, proxyKey(team.Namespace, team.Spec.ProxyRef, team.Spec.ProxyNamespace), &proxy); err != nil {
 		return nil, err
 	}
 	if proxy.Spec.APIAccess == nil {
 		return nil, fmt.Errorf("proxy %s has no spec.apiAccess", proxy.Name)
 	}
-	key, err := readSecretKey(ctx, r.Client, team.Namespace, proxy.Spec.APIAccess.MasterKeyRef)
+	key, err := readSecretKey(ctx, r.Client, proxy.Namespace, proxy.Spec.APIAccess.MasterKeyRef)
 	if err != nil {
 		return nil, err
 	}

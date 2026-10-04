@@ -74,6 +74,28 @@ var and keeps them out of the rendered config); `apiKey`/`apiBase` take literals
 When `spec.route` is set, the operator creates and owns a Gateway API HTTPRoute
 fronting the proxy Service; the Gateway API CRDs are only required if you use it.
 
+Models, guardrails, MCP servers, teams, and virtual keys can reference a proxy
+in another namespace using `spec.proxyNamespace` alongside `spec.proxyRef`:
+
+```yaml
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMVirtualKey
+metadata:
+  name: application
+  namespace: apps
+spec:
+  proxyRef: main
+  proxyNamespace: ai
+  secretName: application-key
+```
+
+Omitting `proxyNamespace` uses the resource's own namespace. Selectors and
+default adoption remain limited to the proxy's namespace. Generated virtual-key
+Secrets and MCP workloads stay in their resource's namespace. The proxy's master
+key and Secret references injected into its Deployment (`apiKeyRef`,
+`apiBaseRef`, and `authTokenRef`) must exist in the proxy's namespace; Secret
+references inside an MCP workload use the MCP server's namespace.
+
 Guardrails and MCP servers are their own CRDs — `LiteLLMGuardrail` and
 `LiteLLMMCPServer` — adopted by a proxy the same way models are (proxyRef,
 selector, or namespace default) and rendered into the proxy's `guardrails` list

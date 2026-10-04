@@ -12,8 +12,8 @@ const (
 	apiBaseEnvPrefix = "LITELLM_MODELBASE_"
 )
 
-// SecretKeyRef points at a single key within a Secret in the same namespace as
-// the LiteLLMModel. The operator wires it into the proxy Deployment as an
+// SecretKeyRef points at a single key within a Secret in the proxy's namespace.
+// The operator wires it into the proxy Deployment as an
 // environment variable and references it from config.yaml via os.environ, so
 // the secret value never lands in the rendered ConfigMap.
 type SecretKeyRef struct {
@@ -113,15 +113,20 @@ type ModelInfo struct {
 }
 
 // LiteLLMModelSpec defines a single proxy model_list entry.
+// +kubebuilder:validation:XValidation:rule="!has(self.proxyNamespace) || size(self.proxyNamespace) == 0 || (has(self.proxyRef) && size(self.proxyRef) > 0)",message="proxyNamespace requires proxyRef"
 type LiteLLMModelSpec struct {
 	// ModelName is the public name clients call (model_list[].model_name).
 	// +kubebuilder:validation:Required
 	ModelName string `json:"modelName"`
 
-	// ProxyRef explicitly binds this model to a LiteLLMProxy by name in the same
-	// namespace. When set it takes precedence over any proxy's modelSelector.
+	// ProxyRef explicitly binds this model to a LiteLLMProxy by name.
+	// When set it takes precedence over any proxy's modelSelector.
 	// +optional
 	ProxyRef string `json:"proxyRef,omitempty"`
+
+	// ProxyNamespace is the proxy's namespace. Defaults to this resource's namespace.
+	// +optional
+	ProxyNamespace string `json:"proxyNamespace,omitempty"`
 
 	// Params is the litellm_params block for this model.
 	// +kubebuilder:validation:Required

@@ -27,14 +27,16 @@ const (
 
 func TestLiteLLMTeamReconciler_MCPServers(t *testing.T) {
 	tests := []struct {
-		name    string
-		servers []string
-		want    []any
+		name           string
+		servers        []string
+		want           []any
+		proxyNamespace string
 	}{
 		{name: "replace servers", servers: []string{"ha-mcp", "context7"}, want: []any{"ha-mcp", "context7"}},
 		{name: "deny access", servers: []string{"no-mcp-servers"}, want: []any{"no-mcp-servers"}},
 		{name: "empty list", servers: []string{}, want: []any{}},
 		{name: "omitted field", want: []any{}},
+		{name: "cross namespace", servers: []string{"remote-mcp"}, want: []any{"remote-mcp"}, proxyNamespace: testProxyNamespace},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -64,17 +66,21 @@ func TestLiteLLMTeamReconciler_MCPServers(t *testing.T) {
 
 			team := &litellmv1alpha1.LiteLLMTeam{
 				ObjectMeta: metav1.ObjectMeta{Name: testTeamName, Namespace: metav1.NamespaceDefault, Generation: 1},
-				Spec:       litellmv1alpha1.LiteLLMTeamSpec{ProxyRef: testProxyName, MCPServers: []string{testOldKeyValue}},
+				Spec:       litellmv1alpha1.LiteLLMTeamSpec{ProxyRef: testProxyName, ProxyNamespace: tt.proxyNamespace, MCPServers: []string{testOldKeyValue}},
 			}
 			scheme := runtime.NewScheme()
 			require.NoError(t, clientgoscheme.AddToScheme(scheme))
 			require.NoError(t, litellmv1alpha1.AddToScheme(scheme))
+			proxy := testVirtualKeyProxy(srv.URL)
+			if tt.proxyNamespace != "" {
+				proxy.Namespace = tt.proxyNamespace
+			}
 			master := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: testMasterSecretName, Namespace: team.Namespace},
+				ObjectMeta: metav1.ObjectMeta{Name: testMasterSecretName, Namespace: proxy.Namespace},
 				Data:       map[string][]byte{testMasterSecretKey: []byte("master")},
 			}
 			c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(team).
-				WithObjects(team, testVirtualKeyProxy(srv.URL), master).Build()
+				WithObjects(team, proxy, master).Build()
 			r := &LiteLLMTeamReconciler{Client: c, Scheme: scheme}
 			req := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(team)}
 			_, err := r.Reconcile(t.Context(), req)

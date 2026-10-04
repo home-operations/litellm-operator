@@ -106,6 +106,10 @@ spec:
                   type: string
                 type: array
                 x-kubernetes-list-type: atomic
+              proxyNamespace:
+                description: ProxyNamespace is the proxy's namespace. Defaults to
+                  this resource's namespace.
+                type: string
               proxyRef:
                 description: ProxyRef is the LiteLLMProxy whose admin API manages
                   this team.

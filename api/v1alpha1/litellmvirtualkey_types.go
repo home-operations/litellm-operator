@@ -8,6 +8,10 @@ type LiteLLMVirtualKeySpec struct {
 	// +kubebuilder:validation:Required
 	ProxyRef string `json:"proxyRef"`
 
+	// ProxyNamespace is the proxy's namespace. Defaults to this resource's namespace.
+	// +optional
+	ProxyNamespace string `json:"proxyNamespace,omitempty"`
+
 	// SecretName is the name of the Secret managed by the operator containing the generated key.
 	// +kubebuilder:validation:Required
 	SecretName string `json:"secretName"`

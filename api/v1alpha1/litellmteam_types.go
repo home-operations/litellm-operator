@@ -17,6 +17,9 @@ type LiteLLMTeamMember struct {
 type LiteLLMTeamSpec struct {
 	// ProxyRef is the LiteLLMProxy whose admin API manages this team.
 	ProxyRef string `json:"proxyRef"`
+	// ProxyNamespace is the proxy's namespace. Defaults to this resource's namespace.
+	// +optional
+	ProxyNamespace string `json:"proxyNamespace,omitempty"`
 	// TeamID is the LiteLLM team ID. It defaults to the Kubernetes resource name.
 	// +optional
 	TeamID string `json:"teamID,omitempty"`

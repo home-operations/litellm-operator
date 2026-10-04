@@ -11,15 +11,20 @@ const (
 )
 
 // LiteLLMGuardrailSpec defines a single config.yaml guardrails[] entry.
+// +kubebuilder:validation:XValidation:rule="!has(self.proxyNamespace) || size(self.proxyNamespace) == 0 || (has(self.proxyRef) && size(self.proxyRef) > 0)",message="proxyNamespace requires proxyRef"
 type LiteLLMGuardrailSpec struct {
 	// GuardrailName is the name clients reference (guardrails[].guardrail_name).
 	// +kubebuilder:validation:Required
 	GuardrailName string `json:"guardrailName"`
 
-	// ProxyRef explicitly binds this guardrail to a LiteLLMProxy by name in the
-	// same namespace. When set it takes precedence over a proxy's modelSelector.
+	// ProxyRef explicitly binds this guardrail to a LiteLLMProxy by name.
+	// When set it takes precedence over a proxy's modelSelector.
 	// +optional
 	ProxyRef string `json:"proxyRef,omitempty"`
+
+	// ProxyNamespace is the proxy's namespace. Defaults to this resource's namespace.
+	// +optional
+	ProxyNamespace string `json:"proxyNamespace,omitempty"`
 
 	// Guardrail is the provider integration, e.g. "aporia", "bedrock", "presidio".
 	// +kubebuilder:validation:Required

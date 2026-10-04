@@ -295,7 +295,7 @@ func (r *LiteLLMVirtualKeyReconciler) outputSecret(ctx context.Context, virtualK
 
 func (r *LiteLLMVirtualKeyReconciler) adminClient(ctx context.Context, virtualKey *litellmv1alpha1.LiteLLMVirtualKey) (*litellmclient.Client, error) {
 	var proxy litellmv1alpha1.LiteLLMProxy
-	if err := r.Get(ctx, types.NamespacedName{Namespace: virtualKey.Namespace, Name: virtualKey.Spec.ProxyRef}, &proxy); err != nil {
+	if err := r.Get(ctx, proxyKey(virtualKey.Namespace, virtualKey.Spec.ProxyRef, virtualKey.Spec.ProxyNamespace), &proxy); err != nil {
 		return nil, fmt.Errorf("get proxy: %w", err)
 	}
 	if proxy.Spec.APIAccess == nil {

@@ -114,6 +114,55 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileCreatesSecretOnce(t *testing.T) {
 	assert.Equal(t, map[string]any{"mcp_toolsets": []any{testKeyToolset}}, requests[0]["object_permission"])
 }
 
+func TestLiteLLMVirtualKeyReconciler_CrossNamespace(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer master", r.Header.Get("Authorization"))
+		paths = append(paths, r.URL.Path)
+		switch r.URL.Path {
+		case "/key/generate":
+			_ = json.NewEncoder(w).Encode(map[string]string{testMasterSecretKey: testGeneratedKey})
+		case testKeyInfoPath:
+			writeTestKeyInfo(w)
+		case "/key/delete":
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	key := testVirtualKey()
+	key.Spec.ProxyNamespace = testProxyNamespace
+	proxy := testVirtualKeyProxy(srv.URL)
+	proxy.Namespace = testProxyNamespace
+	master := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: testMasterSecretName, Namespace: proxy.Namespace},
+		Data:       map[string][]byte{testMasterSecretKey: []byte("master")},
+	}
+	localProxy := &litellmv1alpha1.LiteLLMProxy{ObjectMeta: metav1.ObjectMeta{Name: proxy.Name, Namespace: key.Namespace}}
+	r := testVirtualKeyReconciler(t, key, proxy, master, localProxy)
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: key.Namespace, Name: key.Name}}
+	for range 2 {
+		_, err := r.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+	}
+	var secret corev1.Secret
+	secretKey := types.NamespacedName{Namespace: key.Namespace, Name: key.Spec.SecretName}
+	require.NoError(t, r.Get(t.Context(), secretKey, &secret))
+	assert.Equal(t, []byte(testGeneratedKey), secret.Data[key.SecretDataKey()])
+	assert.True(t, metav1.IsControlledBy(&secret, key))
+	secretKey.Namespace = proxy.Namespace
+	assert.True(t, apierrors.IsNotFound(r.Get(t.Context(), secretKey, &corev1.Secret{})))
+
+	require.NoError(t, r.Get(t.Context(), req.NamespacedName, key))
+	require.NoError(t, r.Delete(t.Context(), key))
+	_, err := r.Reconcile(t.Context(), req)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/key/generate", testKeyInfoPath, "/key/delete"}, paths)
+}
+
 func TestLiteLLMVirtualKeyReconciler_ReconcileUpdatesChangedSpec(t *testing.T) {
 	var paths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

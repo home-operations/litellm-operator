@@ -108,16 +108,21 @@ type MCPWorkloadSpec struct {
 }
 
 // LiteLLMMCPServerSpec defines a single config.yaml mcp_servers entry.
+// +kubebuilder:validation:XValidation:rule="!has(self.proxyNamespace) || size(self.proxyNamespace) == 0 || (has(self.proxyRef) && size(self.proxyRef) > 0)",message="proxyNamespace requires proxyRef"
 type LiteLLMMCPServerSpec struct {
 	// Alias is the key under mcp_servers this server is registered as. Defaults
 	// to the resource name when empty.
 	// +optional
 	Alias string `json:"alias,omitempty"`
 
-	// ProxyRef explicitly binds this server to a LiteLLMProxy by name in the same
-	// namespace. When set it takes precedence over a proxy's modelSelector.
+	// ProxyRef explicitly binds this server to a LiteLLMProxy by name.
+	// When set it takes precedence over a proxy's modelSelector.
 	// +optional
 	ProxyRef string `json:"proxyRef,omitempty"`
+
+	// ProxyNamespace is the proxy's namespace. Defaults to this resource's namespace.
+	// +optional
+	ProxyNamespace string `json:"proxyNamespace,omitempty"`
 
 	// URL of an external MCP server. Mutually exclusive with workload.
 	// +optional
