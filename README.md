@@ -91,10 +91,14 @@ spec:
 
 Omitting `proxyNamespace` uses the resource's own namespace. Selectors and
 default adoption remain limited to the proxy's namespace. Generated virtual-key
-Secrets and MCP workloads stay in their resource's namespace. The proxy's master
-key and Secret references injected into its Deployment (`apiKeyRef`,
-`apiBaseRef`, and `authTokenRef`) must exist in the proxy's namespace; Secret
-references inside an MCP workload use the MCP server's namespace.
+Secrets stay in their resource's namespace.
+
+Secret references (`apiKeyRef`, `apiBaseRef`, and `authTokenRef`) use the
+referencing resource's namespace. For cross-namespace resources, the operator
+copies the referenced keys into a proxy-owned `<proxy>-credentials` Secret.
+Source changes update the copy and restart the proxy pods. Unused keys and
+copies are removed when references are cleared, rebound, or deleted. The proxy's
+master key uses the proxy's namespace; MCP workloads use the MCP server's namespace.
 
 Guardrails and MCP servers are their own CRDs — `LiteLLMGuardrail` and
 `LiteLLMMCPServer` — adopted by a proxy the same way models are (proxyRef,
@@ -163,7 +167,7 @@ in DB mode (Postgres) and `spec.apiAccess.masterKeyRef` to authenticate. In api
 mode guardrails, MCP servers and settings still render into `config.yaml` (with
 `store_model_in_db: true`); only the volatile `model_list` goes over the API.
 Secret-backed keys keep the `os.environ/...` indirection in both modes, so the
-operator wires env vars onto the Deployment and never reads secret values itself.
+operator wires env vars onto the Deployment. Secret values stay out of the ConfigMap.
 The operator only manages models it created (tagged in `model_info`), leaving
 UI- or hand-added models alone.
 

@@ -9,7 +9,9 @@ import (
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
 
 	litellmv1alpha1 "github.com/home-operations/litellm-operator/api/v1alpha1"
@@ -41,6 +43,7 @@ type renderedConfig struct {
 	settingsYAML string
 	settingsHash string
 	envVars      []corev1.EnvVar
+	envOwners    map[string]types.NamespacedName
 	models       []map[string]any
 	guardrails   []map[string]any
 	mcpServers   map[string]any
@@ -50,18 +53,18 @@ type renderedConfig struct {
 // Deployment and guards against two resources deriving the same env var name.
 type envAccumulator struct {
 	vars  []corev1.EnvVar
-	owner map[string]string
+	owner map[string]types.NamespacedName
 }
 
 // secretParam sets params[key] from either a Secret ref (wiring an env var and
 // referencing it via os.environ) or a literal, leaving it unset when neither is given.
-func (a *envAccumulator) secretParam(params map[string]any, key, literal string, ref *litellmv1alpha1.SecretKeyRef, envName, ownerName string) error {
+func (a *envAccumulator) secretParam(params map[string]any, key, literal string, ref *litellmv1alpha1.SecretKeyRef, envName string, owner metav1.Object) error {
 	switch {
 	case ref != nil:
 		if prev, ok := a.owner[envName]; ok {
-			return fmt.Errorf("%q and %q derive the same env var %q", prev, ownerName, envName)
+			return fmt.Errorf("%q and %q derive the same env var %q", prev.Name, owner.GetName(), envName)
 		}
-		a.owner[envName] = ownerName
+		a.owner[envName] = types.NamespacedName{Name: owner.GetName(), Namespace: owner.GetNamespace()}
 		params[key] = "os.environ/" + envName
 		a.vars = append(a.vars, secretEnv(envName, ref))
 	case literal != "":
@@ -81,7 +84,7 @@ func renderConfig(
 	guardrails []litellmv1alpha1.LiteLLMGuardrail,
 	mcpServers []litellmv1alpha1.LiteLLMMCPServer,
 ) (renderedConfig, error) {
-	env := &envAccumulator{owner: map[string]string{}}
+	env := &envAccumulator{owner: map[string]types.NamespacedName{}}
 
 	modelEntries, err := renderModels(models, env)
 	if err != nil {
@@ -142,6 +145,7 @@ func renderConfig(
 		settingsYAML: settingsYAML,
 		settingsHash: hashString(settingsYAML),
 		envVars:      env.vars,
+		envOwners:    env.owner,
 		models:       modelEntries,
 		guardrails:   guardrailEntries,
 		mcpServers:   mcpEntries,
@@ -211,10 +215,10 @@ func renderModels(models []litellmv1alpha1.LiteLLMModel, env *envAccumulator) ([
 		if p.TPM != nil {
 			params["tpm"] = *p.TPM
 		}
-		if err := env.secretParam(params, "api_base", p.APIBase, p.APIBaseRef, m.APIBaseEnvVarName(), m.Name); err != nil {
+		if err := env.secretParam(params, "api_base", p.APIBase, p.APIBaseRef, m.APIBaseEnvVarName(), m); err != nil {
 			return nil, err
 		}
-		if err := env.secretParam(params, "api_key", p.APIKey, p.APIKeyRef, m.APIKeyEnvVarName(), m.Name); err != nil {
+		if err := env.secretParam(params, "api_key", p.APIKey, p.APIKeyRef, m.APIKeyEnvVarName(), m); err != nil {
 			return nil, err
 		}
 
@@ -255,10 +259,10 @@ func renderGuardrails(guardrails []litellmv1alpha1.LiteLLMGuardrail, env *envAcc
 		if g.Spec.DefaultOn != nil {
 			params["default_on"] = *g.Spec.DefaultOn
 		}
-		if err := env.secretParam(params, "api_base", g.Spec.APIBase, g.Spec.APIBaseRef, g.APIBaseEnvVarName(), g.Name); err != nil {
+		if err := env.secretParam(params, "api_base", g.Spec.APIBase, g.Spec.APIBaseRef, g.APIBaseEnvVarName(), g); err != nil {
 			return nil, err
 		}
-		if err := env.secretParam(params, "api_key", g.Spec.APIKey, g.Spec.APIKeyRef, g.APIKeyEnvVarName(), g.Name); err != nil {
+		if err := env.secretParam(params, "api_key", g.Spec.APIKey, g.Spec.APIKeyRef, g.APIKeyEnvVarName(), g); err != nil {
 			return nil, err
 		}
 
@@ -305,7 +309,7 @@ func renderMCPServers(servers []litellmv1alpha1.LiteLLMMCPServer, env *envAccumu
 		if s.Spec.AuthType != "" {
 			entry["auth_type"] = s.Spec.AuthType
 		}
-		if err := env.secretParam(entry, "authentication_token", "", s.Spec.AuthTokenRef, s.AuthTokenEnvVarName(), s.Name); err != nil {
+		if err := env.secretParam(entry, "authentication_token", "", s.Spec.AuthTokenRef, s.AuthTokenEnvVarName(), s); err != nil {
 			return nil, err
 		}
 		alias := s.ServerAlias()

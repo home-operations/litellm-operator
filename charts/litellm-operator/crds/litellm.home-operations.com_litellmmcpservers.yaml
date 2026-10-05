@@ -60,7 +60,7 @@ spec:
                 type: string
               authTokenRef:
                 description: AuthTokenRef sources the server's authentication_token
-                  from a Secret.
+                  from a Secret in this resource's namespace.
                 properties:
                   key:
                     description: Key within the Secret holding the value.

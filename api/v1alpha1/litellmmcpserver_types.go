@@ -137,7 +137,7 @@ type LiteLLMMCPServerSpec struct {
 	// +optional
 	AuthType string `json:"authType,omitempty"`
 
-	// AuthTokenRef sources the server's authentication_token from a Secret.
+	// AuthTokenRef sources the server's authentication_token from a Secret in this resource's namespace.
 	// +optional
 	AuthTokenRef *SecretKeyRef `json:"authTokenRef,omitempty"`
 

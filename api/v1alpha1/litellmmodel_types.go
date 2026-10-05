@@ -12,7 +12,7 @@ const (
 	apiBaseEnvPrefix = "LITELLM_MODELBASE_"
 )
 
-// SecretKeyRef points at a single key within a Secret in the proxy's namespace.
+// SecretKeyRef points at a single key within a Secret in the referencing resource's namespace.
 // The operator wires it into the proxy Deployment as an
 // environment variable and references it from config.yaml via os.environ, so
 // the secret value never lands in the rendered ConfigMap.

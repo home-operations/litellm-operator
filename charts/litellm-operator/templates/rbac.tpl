@@ -101,8 +101,12 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 {{- if .Values.llmkube.autoRegister }}
 - apiGroups:

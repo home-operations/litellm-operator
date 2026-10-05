@@ -37,7 +37,7 @@ type LiteLLMProxyReconciler struct {
 // +kubebuilder:rbac:groups=litellm.home-operations.com,resources=litellmmodels;litellmguardrails;litellmmcpservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile renders the proxy config from matching models and applies the owned resources.
@@ -69,6 +69,10 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, r.markFailed(ctx, &proxy, "RenderFailed", err.Error())
 	}
+	credentialsHash, err := r.reconcileCredentials(ctx, &proxy, rendered.envVars, rendered.envOwners)
+	if err != nil {
+		return ctrl.Result{}, r.markFailed(ctx, &proxy, "SecretResolutionFailed", err.Error())
+	}
 
 	apiMode := proxy.Spec.ApplyMode == "api"
 	cfgYAML, cfgHash := rendered.yaml, rendered.hash
@@ -79,7 +83,7 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := r.applyConfigMap(ctx, &proxy, cfgYAML); err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply configmap: %w", err)
 	}
-	ready, err := r.applyDeployment(ctx, &proxy, cfgHash, rendered.envVars)
+	ready, err := r.applyDeployment(ctx, &proxy, cfgHash, credentialsHash, rendered.envVars)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("apply deployment: %w", err)
 	}
@@ -197,8 +201,12 @@ func (r *LiteLLMProxyReconciler) applyConfigMap(ctx context.Context, proxy *lite
 // current ready replica count. CreateOrUpdate leaves the live status on the
 // object, so there is no need to re-Get it (which would race the cache); the
 // Owns watch re-reconciles the proxy as the count changes.
-func (r *LiteLLMProxyReconciler) applyDeployment(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, configHash string, envVars []corev1.EnvVar) (int32, error) {
+func (r *LiteLLMProxyReconciler) applyDeployment(ctx context.Context, proxy *litellmv1alpha1.LiteLLMProxy, configHash, credentialsHash string, envVars []corev1.EnvVar) (int32, error) {
 	desired := buildDeployment(proxy, configHash, envVars)
+	delete(desired.Spec.Template.Annotations, credentialsHashAnnotation)
+	if credentialsHash != "" {
+		desired.Spec.Template.Annotations[credentialsHashAnnotation] = credentialsHash
+	}
 	deploy := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: desired.Name, Namespace: desired.Namespace}}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
 		deploy.Labels = desired.Labels
@@ -336,9 +344,11 @@ func (r *LiteLLMProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Owns(&gatewayv1.HTTPRoute{}).
 		Watches(&litellmv1alpha1.LiteLLMModel{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForObject)).
 		Watches(&litellmv1alpha1.LiteLLMGuardrail{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForObject)).
 		Watches(&litellmv1alpha1.LiteLLMMCPServer{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForObject)).
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.proxiesForSecret)).
 		Complete(r)
 }
