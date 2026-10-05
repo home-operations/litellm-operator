@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.22](https://github.com/home-operations/litellm-operator/compare/0.0.21...0.0.22) (2026-10-05)
+
+
+### Bug Fixes
+
+* resolve cross-namespace secret references ([94eabd0](https://github.com/home-operations/litellm-operator/commit/94eabd0c2cf225121498232bea3f57b48279b79b))
+
 ## [0.0.21](https://github.com/home-operations/litellm-operator/compare/0.0.20...0.0.21) (2026-10-04)
 
 
