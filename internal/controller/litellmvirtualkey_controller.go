@@ -256,7 +256,10 @@ func virtualKeyRequestsEqual(live litellmclient.VirtualKey, desired litellmclien
 		reflect.DeepEqual(live.MaxParallelRequests, desired.MaxParallelRequests) &&
 		reflect.DeepEqual(live.TPMLimit, desired.TPMLimit) &&
 		reflect.DeepEqual(live.RPMLimit, desired.RPMLimit) &&
-		maps.Equal(live.Metadata, desired.Metadata)
+		maps.EqualFunc(live.Metadata, desired.Metadata, func(live any, desired string) bool {
+			value, ok := live.(string)
+			return ok && value == desired
+		})
 }
 
 func (r *LiteLLMVirtualKeyReconciler) reconcileDelete(ctx context.Context, virtualKey *litellmv1alpha1.LiteLLMVirtualKey) error {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,8 @@ const (
 	testMCPToolsetsField      = "mcp_toolsets"
 	testObjectPermissionField = "object_permission"
 	testTeamInfoPath          = "/team/info"
+	testMetadataField         = "metadata"
+	testPromptCachingField    = "enable_prompt_caching"
 )
 
 func TestClient_ListModelsParsesDataAndAuth(t *testing.T) {
@@ -88,7 +91,9 @@ func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		calls = append(calls, call{path: r.URL.Path, body: body})
 		if r.URL.Path == "/key/generate" {
-			_ = json.NewEncoder(w).Encode(map[string]string{testKeyJSONField: "sk-generated"})
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				testKeyJSONField: "sk-generated", testMetadataField: map[string]any{testPromptCachingField: false},
+			})
 		}
 	}))
 	defer srv.Close()
@@ -102,6 +107,7 @@ func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "sk-generated", generated.Key)
+	assert.Equal(t, map[string]any{testPromptCachingField: false}, generated.Metadata)
 	require.NoError(t, c.DeleteVirtualKey(context.Background(), generated.Key))
 
 	require.Len(t, calls, 2)
@@ -157,6 +163,88 @@ func TestClient_GetVirtualKeyRejectsMissingInfo(t *testing.T) {
 			defer srv.Close()
 			_, err := New(srv.URL, "master", srv.Client()).GetVirtualKey(t.Context(), testLiveKey)
 			require.ErrorContains(t, err, "response has no info")
+		})
+	}
+}
+
+func TestClient_GetVirtualKeyDecodesMetadata(t *testing.T) {
+	metadata := map[string]any{
+		"service_account_id": "test", "tag_rpm_limit": map[string]any{},
+		testPromptCachingField: false, "throttle_on_budget_exceeded": false,
+		"count": float64(2), "tags": []any{"test"}, "optional": nil,
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"info": map[string]any{testMetadataField: metadata}})
+	}))
+	defer srv.Close()
+	live, err := New(srv.URL, "master", srv.Client()).GetVirtualKey(t.Context(), testLiveKey)
+	require.NoError(t, err)
+	assert.Equal(t, metadata, live.Metadata)
+}
+
+func TestClient_GetVirtualKeyErrorsDoNotExposeKey(t *testing.T) {
+	const key = "sk-private+/="
+	tests := []struct {
+		name            string
+		status          int
+		body            string
+		cancel          bool
+		invalidEndpoint bool
+	}{
+		{name: "decode failure", status: http.StatusOK, body: `{"info":{"models":false}}`},
+		{name: "http failure", status: http.StatusBadRequest, body: "invalid key " + key + " " + url.QueryEscape(key)},
+		{name: "transport failure", cancel: true},
+		{name: "invalid request", invalidEndpoint: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, key, r.URL.Query().Get(testKeyJSONField))
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tt.cancel {
+				cancel()
+			}
+			endpoint := srv.URL
+			if tt.invalidEndpoint {
+				endpoint = "://invalid"
+			}
+			_, err := New(endpoint, "master", srv.Client()).GetVirtualKey(ctx, key)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "/key/info")
+			assert.NotContains(t, err.Error(), key)
+			assert.NotContains(t, err.Error(), url.QueryEscape(key))
+			if tt.cancel {
+				assert.ErrorIs(t, err, context.Canceled)
+			}
+		})
+	}
+}
+
+func TestClient_VirtualKeyWriteErrorsDoNotExposeKeys(t *testing.T) {
+	const masterKey = "sk-master-private"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("invalid keys " + testLiveKey + " " + masterKey))
+	}))
+	defer srv.Close()
+	c := New(srv.URL, masterKey, srv.Client())
+	for _, tt := range []struct {
+		name string
+		call func() error
+	}{
+		{name: "update", call: func() error { return c.UpdateVirtualKey(t.Context(), testLiveKey, VirtualKeyRequest{}, false) }},
+		{name: "delete", call: func() error { return c.DeleteVirtualKey(t.Context(), testLiveKey) }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.call()
+			require.ErrorContains(t, err, "status 400")
+			assert.NotContains(t, err.Error(), testLiveKey)
+			assert.NotContains(t, err.Error(), masterKey)
 		})
 	}
 }
@@ -270,7 +358,7 @@ func TestClient_UpdateVirtualKeySendsValuesAndPreservesExpiry(t *testing.T) {
 		testKeyJSONField: testLiveKey, testKeyAliasJSONField: testKeyAlias, testModelsJSONField: []any{testUpdatedModel},
 		"aliases": map[string]any{"alias": testUpdatedModel}, "user_id": "user", teamIDJSONKey: "team", "budget_duration": "1d",
 		"max_budget": 12.5, "max_parallel_requests": float64(3), "tpm_limit": float64(100), "rpm_limit": float64(0),
-		"metadata": map[string]any{testAppMetadataField: testAppMetadataValue},
+		testMetadataField: map[string]any{testAppMetadataField: testAppMetadataValue},
 	}, body)
 }
 

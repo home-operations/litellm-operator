@@ -75,7 +75,7 @@ type VirtualKey struct {
 	MaxParallelRequests *int64            `json:"max_parallel_requests,omitempty"`
 	TPMLimit            *int64            `json:"tpm_limit,omitempty"`
 	RPMLimit            *int64            `json:"rpm_limit,omitempty"`
-	Metadata            map[string]string `json:"metadata,omitempty"`
+	Metadata            map[string]any    `json:"metadata,omitempty"`
 }
 
 // TeamMember identifies a LiteLLM team member and their role.
@@ -164,7 +164,7 @@ func (c *Client) GetVirtualKey(ctx context.Context, key string) (VirtualKey, err
 	var out struct {
 		Info *VirtualKey `json:"info"`
 	}
-	if err := c.do(ctx, http.MethodGet, "/key/info?key="+url.QueryEscape(key), nil, &out); err != nil {
+	if err := c.do(ctx, http.MethodGet, "/key/info?key="+url.QueryEscape(key), nil, &out, key); err != nil {
 		return VirtualKey{}, err
 	}
 	if out.Info == nil {
@@ -218,12 +218,12 @@ func (c *Client) UpdateVirtualKey(ctx context.Context, key string, request Virtu
 			body["duration"] = request.Duration
 		}
 	}
-	return c.do(ctx, http.MethodPost, "/key/update", body, nil)
+	return c.do(ctx, http.MethodPost, "/key/update", body, nil, key)
 }
 
 // DeleteVirtualKey deletes a virtual key (POST /key/delete).
 func (c *Client) DeleteVirtualKey(ctx context.Context, key string) error {
-	return c.do(ctx, http.MethodPost, "/key/delete", map[string][]string{"keys": {key}}, nil)
+	return c.do(ctx, http.MethodPost, "/key/delete", map[string][]string{"keys": {key}}, nil, key)
 }
 
 // CreateTeam creates a LiteLLM team (POST /team/new).
@@ -268,12 +268,36 @@ func (c *Client) DeleteTeamMember(ctx context.Context, id string, m TeamMember) 
 	return c.do(ctx, http.MethodPost, "/team/member_delete", map[string]string{teamIDJSONKey: id, "user_id": m.UserID, "user_email": m.UserEmail}, nil)
 }
 
-func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
+type redactedError struct {
+	err     error
+	message string
+}
+
+func (e *redactedError) Error() string { return e.message }
+func (e *redactedError) Unwrap() error { return e.err }
+
+func (c *Client) do(ctx context.Context, method, path string, body, out any, keys ...string) (err error) {
+	defer func() {
+		if err == nil {
+			return
+		}
+		message := err.Error()
+		for _, key := range append(keys, c.key) {
+			if key != "" {
+				message = strings.ReplaceAll(message, url.QueryEscape(key), "[REDACTED]")
+				message = strings.ReplaceAll(message, key, "[REDACTED]")
+			}
+		}
+		if message != err.Error() {
+			err = &redactedError{err: err, message: message}
+		}
+	}()
+	operation, _, _ := strings.Cut(path, "?")
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return fmt.Errorf("encode %s body: %w", path, err)
+			return fmt.Errorf("encode %s body: %w", operation, err)
 		}
 		reader = bytes.NewReader(encoded)
 	}
@@ -288,17 +312,17 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s %s: %w", method, path, err)
+		return fmt.Errorf("%s %s: %w", method, operation, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	payload, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("%s %s: status %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(payload)))
+		return fmt.Errorf("%s %s: status %d: %s", method, operation, resp.StatusCode, strings.TrimSpace(string(payload)))
 	}
 	if out != nil {
 		if err := json.Unmarshal(payload, out); err != nil {
-			return fmt.Errorf("decode %s response: %w", path, err)
+			return fmt.Errorf("decode %s response: %w", operation, err)
 		}
 	}
 	return nil

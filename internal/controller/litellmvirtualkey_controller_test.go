@@ -28,6 +28,7 @@ const (
 	testKeyInfoField     = "info"
 	testKeyModelsField   = "models"
 	testOldKeyValue      = "old"
+	testNewKeyValue      = "new"
 	testKeyUpdatePath    = "/key/update"
 	testKeyDuration      = "30d"
 	testProxyName        = "proxy"
@@ -38,6 +39,7 @@ const (
 	testKeyModel         = "openai/gpt-5"
 	testKeyTeam          = "team-a"
 	testKeyToolset       = "toolset-a"
+	testKeyMetadataField = "app"
 
 	testReflectorAnnotation = "reflector.v1.k8s.emberstack.com/reflection-allowed"
 	testReflectorAllowed    = "true"
@@ -207,7 +209,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 		{
 			name: "nil and empty collections match",
 			live: litellmclient.VirtualKey{
-				Models: []string{}, Aliases: map[string]string{}, Metadata: map[string]string{},
+				Models: []string{}, Aliases: map[string]string{}, Metadata: map[string]any{},
 				ObjectPermission: &litellmclient.ObjectPermission{MCPToolsets: []string{}},
 			},
 		},
@@ -241,7 +243,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 		{
 			name:        "models change in place",
 			live:        litellmclient.VirtualKey{Models: []string{testOldKeyValue}},
-			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{"new"}},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{testNewKeyValue}},
 			wantUpdates: 1,
 		},
 		{
@@ -250,8 +252,30 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 				KeyAlias: testOldKeyValue, Models: []string{testOldKeyValue}, Aliases: map[string]string{"alias": testOldKeyValue},
 				UserID: "old-user", TeamID: "old-team", MaxBudget: new(12.5), BudgetDuration: "1d",
 				MaxParallelRequests: new(int64(3)), TPMLimit: new(int64(100)), RPMLimit: new(int64(10)),
-				Metadata: map[string]string{"app": testOldKeyValue},
+				Metadata: map[string]any{testKeyMetadataField: testOldKeyValue},
 			},
+			wantUpdates: 1,
+		},
+		{
+			name: "UI metadata does not block model updates",
+			live: litellmclient.VirtualKey{
+				Models: []string{testOldKeyValue},
+				Metadata: map[string]any{
+					"tag_rpm_limit": map[string]any{}, "enable_prompt_caching": false,
+				},
+			},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{testNewKeyValue}},
+			wantUpdates: 1,
+		},
+		{
+			name:    "matching string metadata",
+			live:    litellmclient.VirtualKey{Metadata: map[string]any{testKeyMetadataField: testKeyAlias}},
+			desired: litellmv1alpha1.LiteLLMVirtualKeySpec{Metadata: map[string]string{testKeyMetadataField: testKeyAlias}},
+		},
+		{
+			name:        "non-string metadata differs from spec",
+			live:        litellmclient.VirtualKey{Metadata: map[string]any{testKeyMetadataField: false}},
+			desired:     litellmv1alpha1.LiteLLMVirtualKeySpec{Metadata: map[string]string{testKeyMetadataField: testKeyAlias}},
 			wantUpdates: 1,
 		},
 		{
@@ -263,7 +287,7 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 		{
 			name:         "changing models preserves expiry",
 			live:         litellmclient.VirtualKey{Models: []string{testOldKeyValue}, Expires: &expires},
-			desired:      litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{"new"}, Duration: testKeyDuration},
+			desired:      litellmv1alpha1.LiteLLMVirtualKeySpec{Models: []string{testNewKeyValue}, Duration: testKeyDuration},
 			lastDuration: testKeyDuration, wantUpdates: 1,
 		},
 		{
@@ -367,7 +391,10 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileKeySettings(t *testing.T) {
 			assert.Equal(t, key.Spec.RPMLimit, live.RPMLimit)
 			assert.Nil(t, live.MaxBudget)
 			assert.Empty(t, live.Aliases)
-			assert.Empty(t, live.Metadata)
+			assert.Len(t, live.Metadata, len(key.Spec.Metadata))
+			for name, value := range key.Spec.Metadata {
+				assert.Equal(t, value, live.Metadata[name])
+			}
 			require.NoError(t, r.Get(t.Context(), request.NamespacedName, key))
 			ready := meta.FindStatusCondition(key.Status.Conditions, conditionTypeReady)
 			require.NotNil(t, ready)
@@ -388,15 +415,20 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileAPIFailure(t *testing.T) {
 		name   string
 		path   string
 		reason string
+		body   string
 	}{
-		{name: "read fails", path: testKeyInfoPath, reason: "GetFailed"},
-		{name: "update fails", path: testKeyUpdatePath, reason: "UpdateFailed"},
+		{name: "read fails", path: testKeyInfoPath, reason: "GetFailed", body: "invalid key " + testGeneratedKey},
+		{name: "read decode fails", path: testKeyInfoPath, reason: "GetFailed", body: `{"info":{"models":false}}`},
+		{name: "update fails", path: testKeyUpdatePath, reason: "UpdateFailed", body: "invalid key " + testGeneratedKey},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if req.URL.Path == tt.path {
-					w.WriteHeader(http.StatusServiceUnavailable)
+					if tt.name != "read decode fails" {
+						w.WriteHeader(http.StatusServiceUnavailable)
+					}
+					_, _ = w.Write([]byte(tt.body))
 					return
 				}
 				assert.Equal(t, testKeyInfoPath, req.URL.Path)
@@ -424,11 +456,13 @@ func TestLiteLLMVirtualKeyReconciler_ReconcileAPIFailure(t *testing.T) {
 			request := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: key.Namespace, Name: key.Name}}
 			_, err := r.Reconcile(t.Context(), request)
 			require.ErrorContains(t, err, tt.reason)
+			assert.NotContains(t, err.Error(), testGeneratedKey)
 			require.NoError(t, r.Get(t.Context(), request.NamespacedName, key))
 			ready := meta.FindStatusCondition(key.Status.Conditions, conditionTypeReady)
 			require.NotNil(t, ready)
 			assert.Equal(t, metav1.ConditionFalse, ready.Status)
 			assert.Equal(t, tt.reason, ready.Reason)
+			assert.NotContains(t, ready.Message, testGeneratedKey)
 			assert.Equal(t, key.Generation, ready.ObservedGeneration)
 			require.NoError(t, r.Get(t.Context(), types.NamespacedName{Namespace: key.Namespace, Name: output.Name}, output))
 			assert.Equal(t, []byte(testGeneratedKey), output.Data[key.SecretDataKey()])
