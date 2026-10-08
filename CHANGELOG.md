@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.23](https://github.com/home-operations/litellm-operator/compare/0.0.22...0.0.23) (2026-10-07)
+
+
+### Bug Fixes
+
+* redact virtual key errors and decode mixed metadata ([e56b590](https://github.com/home-operations/litellm-operator/commit/e56b5902440358ebbed8aa401538331257af1b73))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v5.0.0 → v5.0.1) ([#186](https://github.com/home-operations/litellm-operator/issues/186)) ([c355a68](https://github.com/home-operations/litellm-operator/commit/c355a68263c797b3ef3790f3dbac22bfa8ecbf88))
+
 ## [0.0.22](https://github.com/home-operations/litellm-operator/compare/0.0.21...0.0.22) (2026-10-05)
 
 
