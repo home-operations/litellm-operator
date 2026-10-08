@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.0.24](https://github.com/home-operations/litellm-operator/compare/0.0.23...0.0.24) (2026-10-08)
+
+
+### Features
+
+* sync MCP credentials without restarting the proxy ([efce3ad](https://github.com/home-operations/litellm-operator/commit/efce3ada63145700e23cdc1bb93298b503be8f22))
+
+
+### Bug Fixes
+
+* **go:** update module sigs.k8s.io/controller-runtime (v0.25.1 → v0.25.2) ([#193](https://github.com/home-operations/litellm-operator/issues/193)) ([fd7c598](https://github.com/home-operations/litellm-operator/commit/fd7c598ed08d0587337258a97283d64c10615ac7))
+
+
+### Miscellaneous Chores
+
+* **mise:** update mise tools ([#190](https://github.com/home-operations/litellm-operator/issues/190)) ([a0fec79](https://github.com/home-operations/litellm-operator/commit/a0fec7960f7cba8ee71e90c334de4e2a96a7b24b))
+* **mise:** update tool lefthook (2.1.16 → 2.1.17) ([#192](https://github.com/home-operations/litellm-operator/issues/192)) ([d29ba28](https://github.com/home-operations/litellm-operator/commit/d29ba28d5e77c159e53085081b692a33f006ee66))
+
 ## [0.0.23](https://github.com/home-operations/litellm-operator/compare/0.0.22...0.0.23) (2026-10-07)
 
 
