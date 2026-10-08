@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -40,12 +41,32 @@ func credentialReconciler(t *testing.T, proxy *litellmv1alpha1.LiteLLMProxy, obj
 
 func TestProxyCredentialReferences(t *testing.T) {
 	for _, namespace := range []string{testProxyNamespace, "apps"} {
-		for _, mode := range []string{"file", "api"} {
+		for _, mode := range []string{"file", applyModeAPI} {
 			t.Run(namespace+"/"+mode, func(t *testing.T) {
+				var mcpEntries []map[string]any
 				api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 					assert.Equal(t, "Bearer test-key", req.Header.Get("Authorization"))
 					if req.URL.Path == "/model/info" {
 						_, _ = w.Write([]byte(`{"data":[]}`))
+						return
+					}
+					if req.URL.Path == testMCPAPIPath {
+						if req.Method == http.MethodGet {
+							if mcpEntries == nil {
+								mcpEntries = []map[string]any{}
+							}
+							assert.NoError(t, json.NewEncoder(w).Encode(mcpEntries))
+						} else {
+							var body map[string]any
+							assert.NoError(t, json.NewDecoder(req.Body).Decode(&body))
+							mcpEntries = []map[string]any{body}
+							_, _ = w.Write([]byte(`{}`))
+						}
+						return
+					}
+					if req.Method == http.MethodDelete {
+						mcpEntries = nil
+						_, _ = w.Write([]byte(`{}`))
 						return
 					}
 					assert.Equal(t, "/model/new", req.URL.Path)
@@ -85,6 +106,10 @@ func TestProxyCredentialReferences(t *testing.T) {
 						Data: map[string][]byte{ref.Key: []byte("test-key"), baseRef.Key: []byte("wrong-namespace")}})
 				}
 				r := credentialReconciler(t, proxy, objects...)
+				credentialCount := 5
+				if mode == applyModeAPI {
+					credentialCount--
+				}
 				req := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(proxy)}
 				_, err := r.Reconcile(t.Context(), req)
 				require.NoError(t, err)
@@ -97,12 +122,12 @@ func TestProxyCredentialReferences(t *testing.T) {
 					assert.NotContains(t, deploy.Spec.Template.Annotations, credentialsHashAnnotation)
 				} else {
 					require.NoError(t, r.Get(t.Context(), credentialsKey, &credentials))
-					assert.Len(t, credentials.Data, 5)
+					assert.Len(t, credentials.Data, credentialCount)
 					assert.True(t, metav1.IsControlledBy(&credentials, proxy))
 					assert.NotEmpty(t, deploy.Spec.Template.Annotations[credentialsHashAnnotation])
 				}
 				env := deploy.Spec.Template.Spec.Containers[0].Env
-				require.Len(t, env, 5)
+				require.Len(t, env, credentialCount)
 				want := map[string][]byte{
 					model.APIKeyEnvVarName(): source.Data[ref.Key], model.APIBaseEnvVarName(): source.Data[baseRef.Key],
 					guardrail.APIKeyEnvVarName(): source.Data[ref.Key], guardrail.APIBaseEnvVarName(): source.Data[baseRef.Key],
@@ -135,7 +160,7 @@ func TestProxyCredentialReferences(t *testing.T) {
 				require.NoError(t, err)
 				if namespace != proxy.Namespace {
 					require.NoError(t, r.Get(t.Context(), credentialsKey, &credentials))
-					assert.Len(t, credentials.Data, 3)
+					assert.Len(t, credentials.Data, credentialCount-2)
 					assert.NotContains(t, credentials.Data, model.APIKeyEnvVarName())
 					assert.NotContains(t, credentials.Data, model.APIBaseEnvVarName())
 				}
@@ -145,8 +170,12 @@ func TestProxyCredentialReferences(t *testing.T) {
 				_, err = r.Reconcile(t.Context(), req)
 				require.NoError(t, err)
 				if namespace != proxy.Namespace {
-					require.NoError(t, r.Get(t.Context(), credentialsKey, &credentials))
-					assert.Equal(t, map[string][]byte{server.AuthTokenEnvVarName(): source.Data[ref.Key]}, credentials.Data)
+					if mode == applyModeAPI {
+						assert.True(t, apierrors.IsNotFound(r.Get(t.Context(), credentialsKey, &credentials)))
+					} else {
+						require.NoError(t, r.Get(t.Context(), credentialsKey, &credentials))
+						assert.Equal(t, map[string][]byte{server.AuthTokenEnvVarName(): source.Data[ref.Key]}, credentials.Data)
+					}
 				}
 				require.NoError(t, r.Delete(t.Context(), server))
 				_, err = r.Reconcile(t.Context(), req)

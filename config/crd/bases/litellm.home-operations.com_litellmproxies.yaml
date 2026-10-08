@@ -999,10 +999,9 @@ spec:
               applyMode:
                 default: file
                 description: |-
-                  ApplyMode selects how models, guardrails and MCP servers reach the proxy:
-                  "file" renders them into config.yaml and rolls the Deployment on change;
-                  "api" pushes them to the proxy's DB-backed admin API live, with no restart
-                  (requires the proxy to run in DB mode, i.e. Postgres, and apiAccess set).
+                  ApplyMode selects how models and MCP servers reach the proxy:
+                  "file" renders them into config.yaml; "api" uses the DB-backed admin API
+                  (requires Postgres and apiAccess). Guardrails remain file-backed.
                 enum:
                 - file
                 - api
@@ -4598,6 +4597,10 @@ spec:
               configHash:
                 description: ConfigHash is the sha256 of the rendered config.yaml
                   currently applied.
+                type: string
+              mcpConfigHash:
+                description: MCPConfigHash is the sha256 of the last successfully
+                  synced MCP API configuration.
                 type: string
               observedModels:
                 description: ObservedModels is the number of LiteLLMModel resources

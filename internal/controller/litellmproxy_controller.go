@@ -74,7 +74,7 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, r.markFailed(ctx, &proxy, "SecretResolutionFailed", err.Error())
 	}
 
-	apiMode := proxy.Spec.ApplyMode == "api"
+	apiMode := proxy.Spec.ApplyMode == applyModeAPI
 	cfgYAML, cfgHash := rendered.yaml, rendered.hash
 	if apiMode {
 		cfgYAML, cfgHash = rendered.settingsYAML, rendered.settingsHash
@@ -98,6 +98,14 @@ func (r *LiteLLMProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err := r.syncModelsViaAPI(ctx, &proxy, rendered.models); err != nil {
 			return ctrl.Result{}, r.markFailed(ctx, &proxy, "APISyncFailed", err.Error())
 		}
+		if err := r.syncMCPServersViaAPI(ctx, &proxy, mcpServers); err != nil {
+			return ctrl.Result{}, r.markFailed(ctx, &proxy, "MCPAPISyncFailed", err.Error())
+		}
+	} else if proxy.Status.MCPConfigHash != "" {
+		if err := r.syncMCPServersViaAPI(ctx, &proxy, nil); err != nil {
+			return ctrl.Result{}, r.markFailed(ctx, &proxy, "MCPAPISyncFailed", err.Error())
+		}
+		proxy.Status.MCPConfigHash = ""
 	}
 
 	logger.Info("reconciled proxy", "mode", proxy.Spec.ApplyMode, "models", len(models), "configHash", cfgHash)

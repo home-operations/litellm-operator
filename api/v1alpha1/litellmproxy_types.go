@@ -106,10 +106,9 @@ type LiteLLMProxySpec struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
-	// ApplyMode selects how models, guardrails and MCP servers reach the proxy:
-	// "file" renders them into config.yaml and rolls the Deployment on change;
-	// "api" pushes them to the proxy's DB-backed admin API live, with no restart
-	// (requires the proxy to run in DB mode, i.e. Postgres, and apiAccess set).
+	// ApplyMode selects how models and MCP servers reach the proxy:
+	// "file" renders them into config.yaml; "api" uses the DB-backed admin API
+	// (requires Postgres and apiAccess). Guardrails remain file-backed.
 	// +kubebuilder:validation:Enum=file;api
 	// +kubebuilder:default=file
 	// +optional
@@ -306,6 +305,10 @@ type LiteLLMProxyStatus struct {
 	// ConfigHash is the sha256 of the rendered config.yaml currently applied.
 	// +optional
 	ConfigHash string `json:"configHash,omitempty"`
+
+	// MCPConfigHash is the sha256 of the last successfully synced MCP API configuration.
+	// +optional
+	MCPConfigHash string `json:"mcpConfigHash,omitempty"`
 
 	// ObservedModels is the number of LiteLLMModel resources folded into the config.
 	// +optional

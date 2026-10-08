@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	applyModeAPI     = "api"
 	appName          = "litellm"
 	configFileName   = "config.yaml"
 	configMountPath  = litellmv1alpha1.ProxyConfigMountPath
@@ -94,7 +95,11 @@ func renderConfig(
 	if err != nil {
 		return renderedConfig{}, err
 	}
-	mcpEntries, err := renderMCPServers(mcpServers, env)
+	fileServers := mcpServers
+	if proxy.Spec.ApplyMode == applyModeAPI {
+		fileServers = nil
+	}
+	mcpEntries, err := renderMCPServers(fileServers, env)
 	if err != nil {
 		return renderedConfig{}, err
 	}
@@ -125,12 +130,22 @@ func renderConfig(
 	if guardrailEntries != nil {
 		settings["guardrails"] = guardrailEntries
 	}
-	if mcpEntries != nil {
-		settings["mcp_servers"] = mcpEntries
-	}
 	gs, _ := settings["general_settings"].(map[string]any)
 	if gs == nil {
 		gs = map[string]any{}
+	}
+	if proxy.Spec.ApplyMode == applyModeAPI && len(mcpServers) > 0 {
+		if objects, ok := gs["supported_db_objects"].([]any); ok {
+			mcpEnabled := false
+			for _, object := range objects {
+				if object == "mcp" {
+					mcpEnabled = true
+				}
+			}
+			if !mcpEnabled {
+				return renderedConfig{}, fmt.Errorf("api-mode MCP servers require general_settings.supported_db_objects to include mcp")
+			}
+		}
 	}
 	gs["store_model_in_db"] = true
 	settings["general_settings"] = gs

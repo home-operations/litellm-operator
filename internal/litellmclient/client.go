@@ -284,6 +284,8 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any, key
 		message := err.Error()
 		for _, key := range append(keys, c.key) {
 			if key != "" {
+				encoded, _ := json.Marshal(key)
+				message = strings.ReplaceAll(message, string(encoded[1:len(encoded)-1]), "[REDACTED]")
 				message = strings.ReplaceAll(message, url.QueryEscape(key), "[REDACTED]")
 				message = strings.ReplaceAll(message, key, "[REDACTED]")
 			}

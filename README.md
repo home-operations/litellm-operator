@@ -96,8 +96,8 @@ Secrets stay in their resource's namespace.
 Secret references (`apiKeyRef`, `apiBaseRef`, and `authTokenRef`) use the
 referencing resource's namespace. For cross-namespace resources, the operator
 copies the referenced keys into a proxy-owned `<proxy>-credentials` Secret.
-Source changes update the copy and restart the proxy pods. Unused keys and
-copies are removed when references are cleared, rebound, or deleted. The proxy's
+File-backed source changes update the copy and restart the proxy pods. Unused
+keys and copies are removed when references are cleared, rebound, or deleted. The proxy's
 master key uses the proxy's namespace; MCP workloads use the MCP server's namespace.
 
 Guardrails and MCP servers are their own CRDs — `LiteLLMGuardrail` and
@@ -110,6 +110,30 @@ server itself as a Deployment + Service and derive the url from it
 (`http://<name>.<namespace>.svc.cluster.local:<port><path>`, surfaced in
 `status.resolvedURL`). A validating webhook enforces that exactly one of `url`
 or `workload` is set.
+
+With `LiteLLMProxy.spec.applyMode: api`, models and MCP servers use the
+database-backed admin API; guardrails remain in the config file. MCP
+`authTokenRef` values are read directly from their source Secrets and sent as
+`credentials.auth_value`. Rotating a token updates the registered server without
+changing the proxy pod template, ConfigMap, or proxy-owned credentials Secret.
+Failed API writes set the proxy's `Ready` condition to false and retry; tokens
+are redacted from API errors. Clearing a reference clears the stored token, and
+removing a server removes its operator-owned API registration.
+
+This requires `spec.apiAccess`, a database-backed LiteLLM proxy with the MCP
+admin API, and MCP database loading enabled on every replica. If
+`generalSettings.supported_db_objects` is set, it must include `mcp`. LiteLLM
+refreshes the receiving process on update; other replicas pick up the database
+change on their configuration refresh interval. Rotate tokens before expiry to
+allow for this interval. The API and replica refresh behavior were checked
+against [LiteLLM v1.104.2](https://github.com/BerriAI/litellm/blob/v1.104.2/litellm/proxy/management_endpoints/mcp_management_endpoints.py).
+
+Use `applyMode: file` when live MCP updates are unavailable. Moving between modes
+changes the config file and rolls the proxy once. Keep `apiAccess` configured
+when switching back to file mode so the operator can remove its database
+registrations. MCP aliases are retained; database server IDs differ from
+file-backed IDs, so permissions should reference aliases when moving modes.
+
 Callbacks are a typed proxy field (`spec.callbacks` → `success_callback`,
 `failure_callback`, `callbacks`, and the top-level `callback_settings`). Every
 other top-level litellm config key has a named field on the proxy
