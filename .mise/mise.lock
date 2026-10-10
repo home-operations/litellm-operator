@@ -69,21 +69,21 @@ url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/50328620
 provenance = "cosign"
 
 [[tools.go]]
-version = "1.26.9"
+version = "1.27.2"
 backend = "core:go"
-specifiers = ["1.26.9"]
+specifiers = ["1.27.2"]
 
 [tools.go."platforms.linux-arm64"]
-checksum = "sha256:4a97373d49fcacdcf3694fea368a500b00ee3e963974f3e7514132717632f052"
-url = "https://dl.google.com/go/go1.26.9.linux-arm64.tar.gz"
+checksum = "sha256:94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8"
+url = "https://dl.google.com/go/go1.27.2.linux-arm64.tar.gz"
 
 [tools.go."platforms.linux-x64"]
-checksum = "sha256:42d158b4d8f7b61ac0a830567c940a86098fb7aac52e467a5ebec03ef5cc2f8d"
-url = "https://dl.google.com/go/go1.26.9.linux-amd64.tar.gz"
+checksum = "sha256:ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5"
+url = "https://dl.google.com/go/go1.27.2.linux-amd64.tar.gz"
 
 [tools.go."platforms.macos-arm64"]
-checksum = "sha256:f9bb7c0a02506c5d9bf0d1eb1f7ee6c7684f844ae49558308a0427b830e022cc"
-url = "https://dl.google.com/go/go1.26.9.darwin-arm64.tar.gz"
+checksum = "sha256:76812b213b1b2302c978d28fa52fa92d541704b9e7d9d5db8002c50e4018c4c5"
+url = "https://dl.google.com/go/go1.27.2.darwin-arm64.tar.gz"
 
 [[tools."go:golang.org/x/vuln/cmd/govulncheck"]]
 version = "1.8.0"
