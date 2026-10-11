@@ -57,7 +57,10 @@ func (r *LiteLLMTeamReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, r.failed(ctx, &team, "CreateFailed", err.Error())
 		}
 		team.Status.TeamID = created.TeamID
-	} else if ready := meta.FindStatusCondition(team.Status.Conditions, conditionTypeReady); ready == nil || ready.ObservedGeneration != team.Generation {
+	} else if ready := meta.FindStatusCondition(team.Status.Conditions, conditionTypeReady); ready == nil || ready.Status != metav1.ConditionTrue || ready.ObservedGeneration != team.Generation {
+		// failed() records the current generation too, so a generation match
+		// alone would skip the retry after an UpdateFailed and mark the team
+		// reconciled with stale remote state.
 		body.TeamID = team.Status.TeamID
 		if err := admin.UpdateTeam(ctx, body); err != nil {
 			return ctrl.Result{}, r.failed(ctx, &team, "UpdateFailed", err.Error())

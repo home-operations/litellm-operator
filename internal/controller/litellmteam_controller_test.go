@@ -107,3 +107,69 @@ func TestLiteLLMTeamReconciler_MCPServers(t *testing.T) {
 		})
 	}
 }
+
+// A failed /team/update must be retried on the next reconcile. failed()
+// records the current generation on the Ready condition, so gating the update
+// on the generation alone marks the team reconciled with stale remote state.
+func TestLiteLLMTeamReconciler_RetriesFailedUpdate(t *testing.T) {
+	var updates int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/team/new":
+			_ = json.NewEncoder(w).Encode(map[string]string{testTeamIDField: testTeamName})
+		case "/team/info":
+			_ = json.NewEncoder(w).Encode(map[string]any{"team_info": map[string]any{
+				testTeamIDField: testTeamName, "members_with_roles": []any{},
+			}})
+		case "/team/update":
+			updates++
+			if updates == 1 {
+				w.WriteHeader(http.StatusBadGateway)
+			}
+		default:
+			t.Errorf("unexpected request: %s", req.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	team := &litellmv1alpha1.LiteLLMTeam{
+		ObjectMeta: metav1.ObjectMeta{Name: testTeamName, Namespace: metav1.NamespaceDefault, Generation: 1},
+		Spec:       litellmv1alpha1.LiteLLMTeamSpec{ProxyRef: testProxyName, Models: []string{"a"}},
+	}
+	scheme := runtime.NewScheme()
+	require.NoError(t, clientgoscheme.AddToScheme(scheme))
+	require.NoError(t, litellmv1alpha1.AddToScheme(scheme))
+	proxy := testVirtualKeyProxy(srv.URL)
+	master := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: testMasterSecretName, Namespace: proxy.Namespace},
+		Data:       map[string][]byte{testMasterSecretKey: []byte("master")},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(team).
+		WithObjects(team, proxy, master).Build()
+	r := &LiteLLMTeamReconciler{Client: c, Scheme: scheme}
+	req := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(team)}
+	_, err := r.Reconcile(t.Context(), req)
+	require.NoError(t, err)
+
+	require.NoError(t, c.Get(t.Context(), req.NamespacedName, team))
+	team.Spec.Models = []string{"a", "b"}
+	team.Generation++
+	require.NoError(t, c.Update(t.Context(), team))
+
+	_, err = r.Reconcile(t.Context(), req)
+	require.ErrorContains(t, err, "UpdateFailed")
+	require.NoError(t, c.Get(t.Context(), req.NamespacedName, team))
+	ready := meta.FindStatusCondition(team.Status.Conditions, conditionTypeReady)
+	require.NotNil(t, ready)
+	assert.Equal(t, metav1.ConditionFalse, ready.Status)
+
+	_, err = r.Reconcile(t.Context(), req)
+	require.NoError(t, err)
+	assert.Equal(t, 2, updates, "the failed update must be sent again")
+	require.NoError(t, c.Get(t.Context(), req.NamespacedName, team))
+	ready = meta.FindStatusCondition(team.Status.Conditions, conditionTypeReady)
+	require.NotNil(t, ready)
+	assert.Equal(t, metav1.ConditionTrue, ready.Status)
+	assert.Equal(t, team.Generation, ready.ObservedGeneration)
+}
