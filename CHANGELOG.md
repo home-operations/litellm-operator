@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.0.25](https://github.com/home-operations/litellm-operator/compare/0.0.24...0.0.25) (2026-10-12)
+
+
+### Features
+
+* **go:** update module github.com/defilantech/llmkube (v0.9.30 → v0.10.1) ([#180](https://github.com/home-operations/litellm-operator/issues/180)) ([78f25cd](https://github.com/home-operations/litellm-operator/commit/78f25cdd09e241d483da7862ccb3d86cc99c8ef3))
+
+
+### Bug Fixes
+
+* **go:** update module sigs.k8s.io/gateway-api (v1.6.2 → v1.6.3) ([#201](https://github.com/home-operations/litellm-operator/issues/201)) ([83631d5](https://github.com/home-operations/litellm-operator/commit/83631d57a31663361ce9eb172ba08c338331b40c))
+
+
+### Continuous Integration
+
+* **renovate:** regenerate generated files on Renovate pull requests ([#206](https://github.com/home-operations/litellm-operator/issues/206)) ([e2bc38e](https://github.com/home-operations/litellm-operator/commit/e2bc38e486f47c8e7619598d0add8c8cb494e583))
+* **renovate:** remove the dispatch workflow ([0c15bb5](https://github.com/home-operations/litellm-operator/commit/0c15bb52c718fa630b89768cd73385dac60baf45))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump Go to 1.27.2 and golang.org/x/net to v0.60.0 ([#202](https://github.com/home-operations/litellm-operator/issues/202)) ([2e113ef](https://github.com/home-operations/litellm-operator/commit/2e113efca6176803f1b8f7364887796e0187af48))
+* **github-action:** update action jdx/mise-action (v5.0.1 → v5.1.1) ([#194](https://github.com/home-operations/litellm-operator/issues/194)) ([cce40fa](https://github.com/home-operations/litellm-operator/commit/cce40fa43bace2463100003457606b2e914b1b6e))
+* **mise:** update mise tools ([#205](https://github.com/home-operations/litellm-operator/issues/205)) ([82e84db](https://github.com/home-operations/litellm-operator/commit/82e84dbdbc5d7119c764659fb7c442e5ed7f5574))
+* **mise:** update tool oxfmt (0.71.0 → 0.72.0) ([#196](https://github.com/home-operations/litellm-operator/issues/196)) ([4fc1534](https://github.com/home-operations/litellm-operator/commit/4fc1534e0399e747721148dc2a46c372bd156460))
+
 ## [0.0.24](https://github.com/home-operations/litellm-operator/compare/0.0.23...0.0.24) (2026-10-08)
 
 
