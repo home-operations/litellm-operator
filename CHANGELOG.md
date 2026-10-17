@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.26](https://github.com/home-operations/litellm-operator/compare/0.0.25...0.0.26) (2026-10-17)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.10.1 → v0.10.2) ([#203](https://github.com/home-operations/litellm-operator/issues/203)) ([a1087c7](https://github.com/home-operations/litellm-operator/commit/a1087c73a24b2a0eeb7a26664cdab77f5f0d62b2))
+* **go:** update module github.com/onsi/ginkgo/v2 (v2.33.0 → v2.33.1) ([#208](https://github.com/home-operations/litellm-operator/issues/208)) ([cb6f247](https://github.com/home-operations/litellm-operator/commit/cb6f247ed094e3c915586b2907e5574e05f2e8d1))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update github-actions ([#210](https://github.com/home-operations/litellm-operator/issues/210)) ([584085c](https://github.com/home-operations/litellm-operator/commit/584085cdff5ad0965fab83614f3975208b7156b8))
+* **mise:** update tool lefthook (2.2.1 → 2.2.2) ([#211](https://github.com/home-operations/litellm-operator/issues/211)) ([bba083d](https://github.com/home-operations/litellm-operator/commit/bba083d04fc9621a3e74ce30681d3cfbef024b1d))
+
 ## [0.0.25](https://github.com/home-operations/litellm-operator/compare/0.0.24...0.0.25) (2026-10-12)
 
 
