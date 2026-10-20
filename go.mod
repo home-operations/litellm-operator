@@ -1,9 +1,9 @@
 module github.com/home-operations/litellm-operator
 
-go 1.26.6
+go 1.26.9
 
 require (
-	github.com/defilantech/llmkube v0.10.2
+	github.com/defilantech/llmkube v0.10.4
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/open-policy-agent/cert-controller v0.16.0
