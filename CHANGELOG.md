@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.0.26](https://github.com/home-operations/litellm-operator/compare/0.0.25...0.0.26) (2026-10-24)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.10.1 → v0.10.2) ([#203](https://github.com/home-operations/litellm-operator/issues/203)) ([a1087c7](https://github.com/home-operations/litellm-operator/commit/a1087c73a24b2a0eeb7a26664cdab77f5f0d62b2))
+* **go:** update module github.com/defilantech/llmkube (v0.10.2 → v0.10.4) ([#212](https://github.com/home-operations/litellm-operator/issues/212)) ([d8c0126](https://github.com/home-operations/litellm-operator/commit/d8c01267175595587eed6a770172908ca373a0c7))
+* **go:** update module github.com/onsi/ginkgo/v2 (v2.33.0 → v2.33.1) ([#208](https://github.com/home-operations/litellm-operator/issues/208)) ([cb6f247](https://github.com/home-operations/litellm-operator/commit/cb6f247ed094e3c915586b2907e5574e05f2e8d1))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v5.1.2 → v5.2.0) ([#215](https://github.com/home-operations/litellm-operator/issues/215)) ([38bc5e9](https://github.com/home-operations/litellm-operator/commit/38bc5e9ccf6c759dfb943a2fda4f2f6bb39d8eb6))
+* **github-action:** update github-actions ([#210](https://github.com/home-operations/litellm-operator/issues/210)) ([584085c](https://github.com/home-operations/litellm-operator/commit/584085cdff5ad0965fab83614f3975208b7156b8))
+* **github-action:** update github-actions ([#218](https://github.com/home-operations/litellm-operator/issues/218)) ([fb240c3](https://github.com/home-operations/litellm-operator/commit/fb240c3a2c882dd23030e8ea515205a836bffb63))
+* **mise:** update mise tools ([#213](https://github.com/home-operations/litellm-operator/issues/213)) ([ff49684](https://github.com/home-operations/litellm-operator/commit/ff496845c2fa4641a7bd777e765e2884ec270ecd))
+* **mise:** update mise tools ([#216](https://github.com/home-operations/litellm-operator/issues/216)) ([715799c](https://github.com/home-operations/litellm-operator/commit/715799c624d191e461df7a3b7f340323a25d16ac))
+* **mise:** update tool go (1.27.2 → 1.27.3) ([#219](https://github.com/home-operations/litellm-operator/issues/219)) ([41bce35](https://github.com/home-operations/litellm-operator/commit/41bce3537434f4361b85c88eb479443b48007d25))
+* **mise:** update tool lefthook (2.2.1 → 2.2.2) ([#211](https://github.com/home-operations/litellm-operator/issues/211)) ([bba083d](https://github.com/home-operations/litellm-operator/commit/bba083d04fc9621a3e74ce30681d3cfbef024b1d))
+
 ## [0.0.25](https://github.com/home-operations/litellm-operator/compare/0.0.24...0.0.25) (2026-10-12)
 
 
