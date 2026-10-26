@@ -137,9 +137,13 @@ func (c *Client) CreateModel(ctx context.Context, m Model) error {
 	return c.do(ctx, http.MethodPost, "/model/new", m, nil)
 }
 
-// UpdateModel updates a model in place (POST /model/update); m.ModelInfo["id"] must be set.
+// UpdateModel updates a model in place (PATCH /model/{model_id}/update); m.ModelInfo["id"] must be set.
 func (c *Client) UpdateModel(ctx context.Context, m Model) error {
-	return c.do(ctx, http.MethodPost, "/model/update", m, nil)
+	id := m.ModelID()
+	if id == "" {
+		return fmt.Errorf("litellmclient: update model requires model_info.id")
+	}
+	return c.do(ctx, http.MethodPatch, "/model/"+url.PathEscape(id)+"/update", m, nil)
 }
 
 // DeleteModel removes a model by id (POST /model/delete).
