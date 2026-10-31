@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.0.26](https://github.com/home-operations/litellm-operator/compare/0.0.25...0.0.26) (2026-10-31)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/defilantech/llmkube (v0.10.1 → v0.10.2) ([#203](https://github.com/home-operations/litellm-operator/issues/203)) ([a1087c7](https://github.com/home-operations/litellm-operator/commit/a1087c73a24b2a0eeb7a26664cdab77f5f0d62b2))
+* **go:** update module github.com/defilantech/llmkube (v0.10.10 → v0.10.11) ([#229](https://github.com/home-operations/litellm-operator/issues/229)) ([816cb08](https://github.com/home-operations/litellm-operator/commit/816cb08cd28a2873c92bf056387425ce107e19fd))
+* **go:** update module github.com/defilantech/llmkube (v0.10.2 → v0.10.4) ([#212](https://github.com/home-operations/litellm-operator/issues/212)) ([d8c0126](https://github.com/home-operations/litellm-operator/commit/d8c01267175595587eed6a770172908ca373a0c7))
+* **go:** update module github.com/defilantech/llmkube (v0.10.4 → v0.10.5) ([#221](https://github.com/home-operations/litellm-operator/issues/221)) ([eb5bbeb](https://github.com/home-operations/litellm-operator/commit/eb5bbeb730e0bd9eb8ceabd9f83703395fcb8d5c))
+* **go:** update module github.com/defilantech/llmkube (v0.10.5 → v0.10.6) ([#222](https://github.com/home-operations/litellm-operator/issues/222)) ([4a075f5](https://github.com/home-operations/litellm-operator/commit/4a075f5f4773db7f893f21ef5620d0fa4c991ba9))
+* **go:** update module github.com/defilantech/llmkube (v0.10.6 → v0.10.7) ([#223](https://github.com/home-operations/litellm-operator/issues/223)) ([af130df](https://github.com/home-operations/litellm-operator/commit/af130df1e214e66596a7d5cdcc008f2e22e36877))
+* **go:** update module github.com/defilantech/llmkube (v0.10.7 → v0.10.9) ([#226](https://github.com/home-operations/litellm-operator/issues/226)) ([65cebfd](https://github.com/home-operations/litellm-operator/commit/65cebfd93039443b92ae71ba09ad1ed802059aef))
+* **go:** update module github.com/defilantech/llmkube (v0.10.9 → v0.10.10) ([#228](https://github.com/home-operations/litellm-operator/issues/228)) ([16a258e](https://github.com/home-operations/litellm-operator/commit/16a258ef5336b9d821200ea8e6b8f5df06648fc1))
+* **go:** update module github.com/onsi/ginkgo/v2 (v2.33.0 → v2.33.1) ([#208](https://github.com/home-operations/litellm-operator/issues/208)) ([cb6f247](https://github.com/home-operations/litellm-operator/commit/cb6f247ed094e3c915586b2907e5574e05f2e8d1))
+
+
+### Continuous Integration
+
+* mark issues and PRs stale after 180 days, close 14 days later ([74b1f4a](https://github.com/home-operations/litellm-operator/commit/74b1f4a1fd32801e41758571cc192ab9391d67ac))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v5.1.2 → v5.2.0) ([#215](https://github.com/home-operations/litellm-operator/issues/215)) ([38bc5e9](https://github.com/home-operations/litellm-operator/commit/38bc5e9ccf6c759dfb943a2fda4f2f6bb39d8eb6))
+* **github-action:** update action jdx/mise-action (v5.2.2 → v5.2.3) ([#227](https://github.com/home-operations/litellm-operator/issues/227)) ([91d3eff](https://github.com/home-operations/litellm-operator/commit/91d3eff2deb0362286e7da9ba3d123c93f3b80fb))
+* **github-action:** update action jdx/mise-action (v5.2.3 → v5.2.4) ([#231](https://github.com/home-operations/litellm-operator/issues/231)) ([6397560](https://github.com/home-operations/litellm-operator/commit/6397560695b80f6cfe8490d17161b548caf0f593))
+* **github-action:** update github-actions ([#210](https://github.com/home-operations/litellm-operator/issues/210)) ([584085c](https://github.com/home-operations/litellm-operator/commit/584085cdff5ad0965fab83614f3975208b7156b8))
+* **github-action:** update github-actions ([#218](https://github.com/home-operations/litellm-operator/issues/218)) ([fb240c3](https://github.com/home-operations/litellm-operator/commit/fb240c3a2c882dd23030e8ea515205a836bffb63))
+* **github-action:** update github-actions ([#220](https://github.com/home-operations/litellm-operator/issues/220)) ([65419e6](https://github.com/home-operations/litellm-operator/commit/65419e61fabffe02f75f67a7823b1b51542f5192))
+* **go:** update kubernetes monorepo (v0.37.1 → v0.37.2) ([#233](https://github.com/home-operations/litellm-operator/issues/233)) ([8af714e](https://github.com/home-operations/litellm-operator/commit/8af714e65758002ac70b0f708fb592ad146e1e3c))
+* **go:** update module github.com/defilantech/llmkube (v0.10.11 → v0.10.12) ([#230](https://github.com/home-operations/litellm-operator/issues/230)) ([31ff7bb](https://github.com/home-operations/litellm-operator/commit/31ff7bb2e52845b6945e419ad06aa29de037ab01))
+* **go:** update module github.com/defilantech/llmkube (v0.10.12 → v0.10.13) ([#232](https://github.com/home-operations/litellm-operator/issues/232)) ([19b5b5d](https://github.com/home-operations/litellm-operator/commit/19b5b5d82a3433cd4c8640f03043b13c02046bc4))
+* **mise:** update mise tools ([#213](https://github.com/home-operations/litellm-operator/issues/213)) ([ff49684](https://github.com/home-operations/litellm-operator/commit/ff496845c2fa4641a7bd777e765e2884ec270ecd))
+* **mise:** update mise tools ([#216](https://github.com/home-operations/litellm-operator/issues/216)) ([715799c](https://github.com/home-operations/litellm-operator/commit/715799c624d191e461df7a3b7f340323a25d16ac))
+* **mise:** update tool go (1.27.2 → 1.27.3) ([#219](https://github.com/home-operations/litellm-operator/issues/219)) ([41bce35](https://github.com/home-operations/litellm-operator/commit/41bce3537434f4361b85c88eb479443b48007d25))
+* **mise:** update tool lefthook (2.2.1 → 2.2.2) ([#211](https://github.com/home-operations/litellm-operator/issues/211)) ([bba083d](https://github.com/home-operations/litellm-operator/commit/bba083d04fc9621a3e74ce30681d3cfbef024b1d))
+* **renovate:** extend the org preset from home-operations/.github ([3c5f393](https://github.com/home-operations/litellm-operator/commit/3c5f3934f6ae85a8171a2fd5f91f75801e54e0ce))
+
 ## [0.0.25](https://github.com/home-operations/litellm-operator/compare/0.0.24...0.0.25) (2026-10-12)
 
 
