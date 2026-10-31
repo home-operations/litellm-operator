@@ -69,15 +69,26 @@ func TestClient_CreateUpdateDeleteSendCorrectRequests(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, c.CreateModel(ctx, Model{ModelName: "m", LiteLLMParams: map[string]any{"model": "openai/m"}}))
-	require.NoError(t, c.UpdateModel(ctx, Model{ModelName: "m", ModelInfo: map[string]any{"id": "x"}}))
+	require.NoError(t, c.UpdateModel(ctx, Model{
+		ModelName: "m",
+		ModelInfo: map[string]any{"id": "x", "access_groups": []string{"premium"}},
+	}))
 	require.NoError(t, c.DeleteModel(ctx, "x"))
 
 	require.Len(t, calls, 3)
 	assert.Equal(t, "/model/new", calls[0].path)
 	assert.Equal(t, "openai/m", calls[0].body["litellm_params"].(map[string]any)["model"])
-	assert.Equal(t, "/model/update", calls[1].path)
+	assert.Equal(t, http.MethodPatch, calls[1].method)
+	assert.Equal(t, "/model/x/update", calls[1].path)
+	assert.Equal(t, "x", calls[1].body["model_info"].(map[string]any)["id"])
+	assert.Equal(t, []any{"premium"}, calls[1].body["model_info"].(map[string]any)["access_groups"])
 	assert.Equal(t, "/model/delete", calls[2].path)
 	assert.Equal(t, "x", calls[2].body["id"])
+}
+
+func TestClient_UpdateModelRequiresID(t *testing.T) {
+	err := New("http://example.com", "k", nil).UpdateModel(context.Background(), Model{})
+	require.ErrorContains(t, err, "update model requires model_info.id")
 }
 
 func TestClient_GenerateAndDeleteVirtualKey(t *testing.T) {
