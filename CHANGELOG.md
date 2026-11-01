@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.27](https://github.com/home-operations/litellm-operator/compare/0.0.26...0.0.27) (2026-11-01)
+
+
+### Continuous Integration
+
+* **govulncheck:** run the scan on a schedule ([bca742f](https://github.com/home-operations/litellm-operator/commit/bca742fd67751784cbad8a5825f5cf412de4bc9f))
+
+
+### Miscellaneous Chores
+
+* **go:** update module github.com/defilantech/llmkube (v0.10.13 → v0.10.14) ([#234](https://github.com/home-operations/litellm-operator/issues/234)) ([af839f9](https://github.com/home-operations/litellm-operator/commit/af839f9f73fc5f3853a6c8fc0f5c412fee04b802))
+* **go:** update module github.com/defilantech/llmkube (v0.10.14 → v0.10.15) ([#238](https://github.com/home-operations/litellm-operator/issues/238)) ([78536b2](https://github.com/home-operations/litellm-operator/commit/78536b24a1b60aff52b00372f4563e1660a74243))
+* **go:** update module sigs.k8s.io/gateway-api (v1.6.3 → v1.7.0) ([#236](https://github.com/home-operations/litellm-operator/issues/236)) ([474d7a2](https://github.com/home-operations/litellm-operator/commit/474d7a2a4a51bc345cb232edede604a297d0f1b6))
+* **mise:** update tool kubectl (1.37.1 → 1.37.2) ([#235](https://github.com/home-operations/litellm-operator/issues/235)) ([e4dccd9](https://github.com/home-operations/litellm-operator/commit/e4dccd9aaca5f0455289665eae8b284655aae18b))
+
 ## [0.0.26](https://github.com/home-operations/litellm-operator/compare/0.0.25...0.0.26) (2026-10-31)
 
 
