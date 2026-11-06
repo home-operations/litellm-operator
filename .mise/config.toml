@@ -14,7 +14,7 @@ oxfmt = "0.72.0"
 setup-envtest = "0.25.2"
 "aqua:dadav/helm-schema" = "0.23.5"
 yq = "4.54.1"
-zizmor = "1.31.1"
+zizmor = "1.32.0"
 
 [tasks.manifests]
 description = "Generate CRD and RBAC manifests"
