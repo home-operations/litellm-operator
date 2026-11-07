@@ -46,7 +46,7 @@ func TestProxyCredentialReferences(t *testing.T) {
 				var mcpEntries []map[string]any
 				api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 					assert.Equal(t, "Bearer test-key", req.Header.Get("Authorization"))
-					if req.URL.Path == "/model/info" {
+					if req.URL.Path == "/v2/model/info" {
 						_, _ = w.Write([]byte(`{"data":[]}`))
 						return
 					}

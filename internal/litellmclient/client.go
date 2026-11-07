@@ -121,15 +121,30 @@ func (m Model) ModelID() string {
 	return id
 }
 
-// ListModels returns the models currently registered on the proxy (GET /model/info).
+// modelPageSize is the page size requested from GET /v2/model/info, which
+// paginates (50 per page by default).
+const modelPageSize = 100
+
+// ListModels returns the deployments registered on the proxy (GET /v2/model/info),
+// following its pagination. The v2 listing returns each deployment once under
+// its own model_name; GET /model/info instead expands a wildcard deployment
+// such as "zai/*" into one entry per matching model, all sharing its id.
 func (c *Client) ListModels(ctx context.Context) ([]Model, error) {
-	var out struct {
-		Data []Model `json:"data"`
+	var models []Model
+	for page := 1; ; page++ {
+		var out struct {
+			Data       []Model `json:"data"`
+			TotalPages int     `json:"total_pages"`
+		}
+		path := fmt.Sprintf("/v2/model/info?page=%d&size=%d", page, modelPageSize)
+		if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
+			return nil, err
+		}
+		models = append(models, out.Data...)
+		if len(out.Data) == 0 || page >= out.TotalPages {
+			return models, nil
+		}
 	}
-	if err := c.do(ctx, http.MethodGet, "/model/info", nil, &out); err != nil {
-		return nil, err
-	}
-	return out.Data, nil
 }
 
 // CreateModel adds a model (POST /model/new).
@@ -137,9 +152,15 @@ func (c *Client) CreateModel(ctx context.Context, m Model) error {
 	return c.do(ctx, http.MethodPost, "/model/new", m, nil)
 }
 
-// UpdateModel updates a model in place (POST /model/update); m.ModelInfo["id"] must be set.
+// UpdateModel updates the model identified by m.ModelInfo["id"] in place
+// (PATCH /model/{id}/update). POST /model/update persists only litellm_params,
+// so a model_info change sent there never reaches the stored model.
 func (c *Client) UpdateModel(ctx context.Context, m Model) error {
-	return c.do(ctx, http.MethodPost, "/model/update", m, nil)
+	id := m.ModelID()
+	if id == "" {
+		return fmt.Errorf("litellmclient: update model %q: model_info.id is not set", m.ModelName)
+	}
+	return c.do(ctx, http.MethodPatch, "/model/"+url.PathEscape(id)+"/update", m, nil)
 }
 
 // DeleteModel removes a model by id (POST /model/delete).

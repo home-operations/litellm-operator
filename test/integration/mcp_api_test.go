@@ -28,7 +28,7 @@ var _ = Describe("MCP API credential rotation", func() {
 			mu.Lock()
 			defer mu.Unlock()
 			switch {
-			case req.URL.Path == "/model/info":
+			case req.URL.Path == "/v2/model/info":
 				_, _ = w.Write([]byte(`{"data":[]}`))
 			case req.URL.Path == "/v1/mcp/server" && req.Method == http.MethodGet:
 				if registered == nil {

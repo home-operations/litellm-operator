@@ -33,7 +33,7 @@ func TestClient_ListModelsParsesDataAndAuth(t *testing.T) {
 	var auth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth = r.Header.Get("Authorization")
-		assert.Equal(t, "/model/info", r.URL.Path)
+		assert.Equal(t, "/v2/model/info", r.URL.Path)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{{
 				"model_name":     "glm",
@@ -50,6 +50,89 @@ func TestClient_ListModelsParsesDataAndAuth(t *testing.T) {
 	assert.Equal(t, "glm", models[0].ModelName)
 	assert.Equal(t, "abc", models[0].ModelID())
 	assert.Equal(t, "Bearer sk-master", auth)
+}
+
+func TestClient_ListModelsFollowsPagination(t *testing.T) {
+	// page builds a /v2/model/info response; totalPages 0 omits total_pages.
+	page := func(totalPages int, names ...string) map[string]any {
+		data := make([]map[string]any, 0, len(names))
+		for _, name := range names {
+			data = append(data, map[string]any{"model_name": name, "model_info": map[string]any{"id": name}})
+		}
+		body := map[string]any{"data": data}
+		if totalPages > 0 {
+			body["total_pages"] = totalPages
+		}
+		return body
+	}
+	tests := []struct {
+		name      string
+		pages     map[string]map[string]any // keyed by the requested page query value
+		wantNames []string
+		wantPages []string
+	}{
+		{
+			name:      "single page",
+			pages:     map[string]map[string]any{"1": page(1, "a")},
+			wantNames: []string{"a"},
+			wantPages: []string{"1"},
+		},
+		{
+			name:      "every page up to total_pages",
+			pages:     map[string]map[string]any{"1": page(3, "a"), "2": page(3, "b"), "3": page(3, "c")},
+			wantNames: []string{"a", "b", "c"},
+			wantPages: []string{"1", "2", "3"},
+		},
+		{
+			name:      "stops at an empty page",
+			pages:     map[string]map[string]any{"1": page(5, "a"), "2": page(5)},
+			wantNames: []string{"a"},
+			wantPages: []string{"1", "2"},
+		},
+		{
+			name:      "response without total_pages is a single page",
+			pages:     map[string]map[string]any{"1": page(0, "a")},
+			wantNames: []string{"a"},
+			wantPages: []string{"1"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var requested []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				pageNum := r.URL.Query().Get("page")
+				requested = append(requested, pageNum)
+				assert.Equal(t, "100", r.URL.Query().Get("size"))
+				body, ok := tt.pages[pageNum]
+				if !ok {
+					t.Errorf("unexpected page %q requested", pageNum)
+					body = page(0)
+				}
+				_ = json.NewEncoder(w).Encode(body)
+			}))
+			defer srv.Close()
+
+			models, err := New(srv.URL, "k", srv.Client()).ListModels(context.Background())
+			require.NoError(t, err)
+			names := make([]string, 0, len(models))
+			for _, m := range models {
+				names = append(names, m.ModelName)
+			}
+			assert.Equal(t, tt.wantNames, names)
+			assert.Equal(t, tt.wantPages, requested)
+		})
+	}
+}
+
+func TestClient_UpdateModelRequiresID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("no request expected for a model without an id")
+	}))
+	defer srv.Close()
+
+	err := New(srv.URL, "k", srv.Client()).UpdateModel(context.Background(), Model{ModelName: "m"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "model_info.id")
 }
 
 func TestClient_CreateUpdateDeleteSendCorrectRequests(t *testing.T) {
@@ -69,13 +152,15 @@ func TestClient_CreateUpdateDeleteSendCorrectRequests(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, c.CreateModel(ctx, Model{ModelName: "m", LiteLLMParams: map[string]any{"model": "openai/m"}}))
-	require.NoError(t, c.UpdateModel(ctx, Model{ModelName: "m", ModelInfo: map[string]any{"id": "x"}}))
+	require.NoError(t, c.UpdateModel(ctx, Model{ModelName: "m", ModelInfo: map[string]any{"id": "x", "max_input_tokens": 8192}}))
 	require.NoError(t, c.DeleteModel(ctx, "x"))
 
 	require.Len(t, calls, 3)
 	assert.Equal(t, "/model/new", calls[0].path)
 	assert.Equal(t, "openai/m", calls[0].body["litellm_params"].(map[string]any)["model"])
-	assert.Equal(t, "/model/update", calls[1].path)
+	assert.Equal(t, http.MethodPatch, calls[1].method)
+	assert.Equal(t, "/model/x/update", calls[1].path)
+	assert.InDelta(t, 8192, calls[1].body["model_info"].(map[string]any)["max_input_tokens"], 0, "model_info must be sent with the update")
 	assert.Equal(t, "/model/delete", calls[2].path)
 	assert.Equal(t, "x", calls[2].body["id"])
 }
