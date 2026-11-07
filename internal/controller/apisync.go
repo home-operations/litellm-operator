@@ -29,28 +29,11 @@ func syncModels(ctx context.Context, c modelAPI, desired []map[string]any) error
 		return err
 	}
 
-	// Each managed name is reconciled against its first listed row; any further
-	// managed rows under that name are surplus and deleted, so a duplicate left
-	// by an interrupted sync doesn't keep serving alongside the reconciled row.
-	// Rows are keyed by id first so a row listed twice is never queued for
-	// deletion as a duplicate of itself.
 	managed := make(map[string]litellmclient.Model, len(existing))
-	seen := make(map[string]struct{}, len(existing))
-	var surplus []string
 	for _, m := range existing {
-		if m.ModelInfo[managedByKey] != managedByValue {
-			continue
+		if m.ModelInfo[managedByKey] == managedByValue {
+			managed[m.ModelName] = m
 		}
-		id := m.ModelID()
-		if _, dup := seen[id]; dup {
-			continue
-		}
-		seen[id] = struct{}{}
-		if _, taken := managed[m.ModelName]; taken {
-			surplus = append(surplus, id)
-			continue
-		}
-		managed[m.ModelName] = m
 	}
 
 	desiredNames := make(map[string]struct{}, len(desired))
@@ -86,10 +69,7 @@ func syncModels(ctx context.Context, c modelAPI, desired []map[string]any) error
 		if _, keep := desiredNames[name]; keep {
 			continue
 		}
-		surplus = append(surplus, cur.ModelID())
-	}
-	for _, id := range surplus {
-		if err := c.DeleteModel(ctx, id); err != nil {
+		if err := c.DeleteModel(ctx, cur.ModelID()); err != nil {
 			return err
 		}
 	}
