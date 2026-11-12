@@ -50,6 +50,7 @@ func moduleCRDPath(module string, sub ...string) string {
 var (
 	testEnv   *envtest.Environment
 	k8sClient client.Client
+	mgrClient client.Client
 	ctx       context.Context
 	cancel    context.CancelFunc
 )
@@ -85,8 +86,13 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme, Metrics: metricsserver.Options{BindAddress: "0"}})
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:  scheme,
+		Cache:   controller.CacheOptions(),
+		Metrics: metricsserver.Options{BindAddress: "0"},
+	})
 	Expect(err).NotTo(HaveOccurred())
+	mgrClient = mgr.GetClient()
 
 	Expect((&controller.LiteLLMProxyReconciler{
 		Client: mgr.GetClient(),

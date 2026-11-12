@@ -53,6 +53,19 @@ var _ = BeforeSuite(func() {
 		"--set", "image.pullPolicy=Never",
 		"--wait", "--timeout", "5m")
 	Expect(err).NotTo(HaveOccurred())
+
+	By("waiting for admission through the webhook Service")
+	Eventually(func(g Gomega) {
+		_, err := kubectlApply(`
+apiVersion: litellm.home-operations.com/v1alpha1
+kind: LiteLLMProxy
+metadata:
+  name: webhook-ready
+  namespace: default
+spec: {}
+`, "--dry-run=server")
+		g.Expect(err).NotTo(HaveOccurred())
+	}).Should(Succeed())
 })
 
 // The cluster is thrown away right after the run, so dump the state a failure

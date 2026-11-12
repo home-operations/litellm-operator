@@ -115,6 +115,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:        scheme,
+		Cache:         controller.CacheOptions(),
 		Metrics:       metricsServerOptions,
 		WebhookServer: webhook.NewServer(webhook.Options{TLSOpts: tlsOpts}),
 		// The dedicated health-probe server is disabled; probes are co-hosted on
