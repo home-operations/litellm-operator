@@ -44,9 +44,9 @@ func kubectl(args ...string) (string, error) {
 }
 
 // kubectlApply pipes the given manifest to `kubectl apply -f -`.
-func kubectlApply(manifest string) (string, error) {
+func kubectlApply(manifest string, args ...string) (string, error) {
 	GinkgoHelper()
-	cmd := exec.Command("kubectl", "apply", "-f", "-")
+	cmd := exec.Command("kubectl", append([]string{"apply", "-f", "-"}, args...)...)
 	cmd.Stdin = strings.NewReader(manifest)
 	out, err := cmd.CombinedOutput()
 	_, _ = fmt.Fprint(GinkgoWriter, string(out))
