@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.0.27](https://github.com/home-operations/litellm-operator/compare/0.0.26...0.0.27) (2026-11-12)
+
+
+### Bug Fixes
+
+* **apisync:** converge wildcard models and persist model_info changes ([#245](https://github.com/home-operations/litellm-operator/issues/245)) ([91c2c3b](https://github.com/home-operations/litellm-operator/commit/91c2c3bec3fececa22d26de1c542a60f972e450b))
+* **controller:** keep Helm release Secrets out of the Secret cache ([#252](https://github.com/home-operations/litellm-operator/issues/252)) ([6110f09](https://github.com/home-operations/litellm-operator/commit/6110f099ddecd7f0336f97e3366fdb80819c2dc2))
+
+
+### Continuous Integration
+
+* **govulncheck:** run the scan on a schedule ([bca742f](https://github.com/home-operations/litellm-operator/commit/bca742fd67751784cbad8a5825f5cf412de4bc9f))
+* replace the shared workflow-lint action with zizmor-action ([406e8b4](https://github.com/home-operations/litellm-operator/commit/406e8b40517d36fa40d3f63bf063177caa5b4895))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action docker/github-builder (v1.18.1 → v1.19.0) ([#247](https://github.com/home-operations/litellm-operator/issues/247)) ([5d21459](https://github.com/home-operations/litellm-operator/commit/5d21459f95612e2f4dab192a202d5a9e889e113f))
+* **github-action:** update action docker/login-action (v4.7.0 → v4.8.0) ([#246](https://github.com/home-operations/litellm-operator/issues/246)) ([30e142e](https://github.com/home-operations/litellm-operator/commit/30e142e87db44105fdf900f70f467f126d4e5d06))
+* **github-action:** update action jdx/mise-action (v5.2.4 → v5.2.5) ([#241](https://github.com/home-operations/litellm-operator/issues/241)) ([50deaaa](https://github.com/home-operations/litellm-operator/commit/50deaaac137987c5a329d91bc189994c36e77984))
+* **github-action:** update action jdx/mise-action (v5.2.6 → v5.2.7) ([#249](https://github.com/home-operations/litellm-operator/issues/249)) ([88affbe](https://github.com/home-operations/litellm-operator/commit/88affbe07754b8b1447b63eebd6b4e2df1f2d812))
+* **github-action:** update github-actions ([#242](https://github.com/home-operations/litellm-operator/issues/242)) ([dc1d8bb](https://github.com/home-operations/litellm-operator/commit/dc1d8bb95cf6b3efd421da23d526c06d0dfc22e0))
+* **go:** update module github.com/defilantech/llmkube (v0.10.13 → v0.10.14) ([#234](https://github.com/home-operations/litellm-operator/issues/234)) ([af839f9](https://github.com/home-operations/litellm-operator/commit/af839f9f73fc5f3853a6c8fc0f5c412fee04b802))
+* **go:** update module github.com/defilantech/llmkube (v0.10.14 → v0.10.15) ([#238](https://github.com/home-operations/litellm-operator/issues/238)) ([78536b2](https://github.com/home-operations/litellm-operator/commit/78536b24a1b60aff52b00372f4563e1660a74243))
+* **go:** update module github.com/defilantech/llmkube (v0.10.15 → v0.10.16) ([#239](https://github.com/home-operations/litellm-operator/issues/239)) ([29be542](https://github.com/home-operations/litellm-operator/commit/29be5424e2c1142787287215297ce9145d4da283))
+* **go:** update module github.com/defilantech/llmkube (v0.10.16 → v0.10.17) ([#244](https://github.com/home-operations/litellm-operator/issues/244)) ([cf36893](https://github.com/home-operations/litellm-operator/commit/cf36893717550325f108f4b8a7d58c4d7a640a69))
+* **go:** update module github.com/onsi/ginkgo/v2 (v2.33.1 → v2.34.0) ([#240](https://github.com/home-operations/litellm-operator/issues/240)) ([b5a4410](https://github.com/home-operations/litellm-operator/commit/b5a4410ab44d1e079f2be7ddad5a9bc5dc326193))
+* **go:** update module sigs.k8s.io/gateway-api (v1.6.3 → v1.7.0) ([#236](https://github.com/home-operations/litellm-operator/issues/236)) ([474d7a2](https://github.com/home-operations/litellm-operator/commit/474d7a2a4a51bc345cb232edede604a297d0f1b6))
+* **mise:** update tool kubectl (1.37.1 → 1.37.2) ([#235](https://github.com/home-operations/litellm-operator/issues/235)) ([e4dccd9](https://github.com/home-operations/litellm-operator/commit/e4dccd9aaca5f0455289665eae8b284655aae18b))
+* **mise:** update tool yq (4.54.1 → 4.54.2) ([#248](https://github.com/home-operations/litellm-operator/issues/248)) ([543f3e4](https://github.com/home-operations/litellm-operator/commit/543f3e4cb2abfc2c5ec91cc0761323c64861b15f))
+* **mise:** update tool zizmor (1.31.1 → 1.32.0) ([#243](https://github.com/home-operations/litellm-operator/issues/243)) ([22a0c70](https://github.com/home-operations/litellm-operator/commit/22a0c7091a8d5816542c1a0d72af2e682e88a3a9))
+
 ## [0.0.26](https://github.com/home-operations/litellm-operator/compare/0.0.25...0.0.26) (2026-10-31)
 
 
