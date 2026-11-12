@@ -37,7 +37,7 @@ func TestAPIMCPCredentialRotation(t *testing.T) {
 			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				assert.Equal(t, "Bearer master-key", req.Header.Get("Authorization"))
 				switch {
-				case req.URL.Path == "/model/info":
+				case req.URL.Path == "/v2/model/info":
 					_, _ = w.Write([]byte(`{"data":[]}`))
 				case req.URL.Path == testMCPAPIPath && req.Method == http.MethodGet:
 					if registered == nil {
