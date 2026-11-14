@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.28](https://github.com/home-operations/litellm-operator/compare/0.0.27...0.0.28) (2026-11-14)
+
+
+### Miscellaneous Chores
+
+* **go:** update module github.com/defilantech/llmkube (v0.10.17 → v0.10.18) ([#255](https://github.com/home-operations/litellm-operator/issues/255)) ([7707b6d](https://github.com/home-operations/litellm-operator/commit/7707b6d4173851b41696775a2e2bfa224dc276c4))
+* **mise:** update tool go (1.27.3 → 1.27.4) ([#253](https://github.com/home-operations/litellm-operator/issues/253)) ([57bb56b](https://github.com/home-operations/litellm-operator/commit/57bb56b98ab23f8c18e68d8022df2869caea2fb9))
+
 ## [0.0.27](https://github.com/home-operations/litellm-operator/compare/0.0.26...0.0.27) (2026-11-12)
 
 
