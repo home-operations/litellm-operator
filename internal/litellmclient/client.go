@@ -249,6 +249,9 @@ func (c *Client) DeleteVirtualKey(ctx context.Context, key string) error {
 
 // CreateTeam creates a LiteLLM team (POST /team/new).
 func (c *Client) CreateTeam(ctx context.Context, team TeamRequest) (Team, error) {
+	if team.Models == nil {
+		team.Models = []string{}
+	}
 	if team.ObjectPermission != nil && team.ObjectPermission.MCPServers == nil {
 		team.ObjectPermission = &TeamObjectPermission{MCPServers: []string{}}
 	}
@@ -259,6 +262,9 @@ func (c *Client) CreateTeam(ctx context.Context, team TeamRequest) (Team, error)
 
 // UpdateTeam updates a LiteLLM team (POST /team/update).
 func (c *Client) UpdateTeam(ctx context.Context, team TeamRequest) error {
+	if team.Models == nil {
+		team.Models = []string{}
+	}
 	if team.ObjectPermission != nil && team.ObjectPermission.MCPServers == nil {
 		team.ObjectPermission = &TeamObjectPermission{MCPServers: []string{}}
 	}

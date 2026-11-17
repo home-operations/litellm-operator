@@ -478,6 +478,43 @@ func TestClient_ManageTeam(t *testing.T) {
 	assert.Equal(t, []string{"/team/new", "/team/update", "/team/info", "/team/member_add", "/team/member_delete", "/team/delete"}, paths)
 }
 
+func TestClient_TeamModels(t *testing.T) {
+	const teamID = "platform"
+	tests := []struct {
+		name   string
+		models []string
+		want   []any
+	}{
+		{name: "nil models", want: []any{}},
+		{name: "empty models", models: []string{}, want: []any{}},
+		{name: "restricted models", models: []string{testUpdatedModel}, want: []any{testUpdatedModel}},
+		{name: "all proxy models", models: []string{"all-proxy-models"}, want: []any{"all-proxy-models"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				var body map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				calls = append(calls, body)
+				_ = json.NewEncoder(w).Encode(map[string]string{teamIDJSONKey: teamID})
+			}))
+			defer srv.Close()
+			c := New(srv.URL, "master", srv.Client())
+			request := TeamRequest{TeamID: teamID, Models: tt.models}
+			team, err := c.CreateTeam(t.Context(), request)
+			require.NoError(t, err)
+			assert.Equal(t, teamID, team.TeamID)
+			require.NoError(t, c.UpdateTeam(t.Context(), request))
+			require.Len(t, calls, 2)
+			for _, body := range calls {
+				assert.Equal(t, tt.want, body[testModelsJSONField])
+			}
+		})
+	}
+}
+
 func TestClient_TeamMCPServers(t *testing.T) {
 	const serversField = "mcp_servers"
 	const teamID = "platform"

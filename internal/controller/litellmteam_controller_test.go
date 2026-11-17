@@ -86,6 +86,7 @@ func TestLiteLLMTeamReconciler_MCPServers(t *testing.T) {
 			_, err := r.Reconcile(t.Context(), req)
 			require.NoError(t, err)
 			require.Len(t, creates, 1)
+			assert.Equal(t, []any{}, creates[0]["models"])
 			assert.Equal(t, map[string]any{"mcp_servers": []any{testOldKeyValue}}, creates[0]["object_permission"])
 
 			require.NoError(t, c.Get(t.Context(), req.NamespacedName, team))
@@ -97,6 +98,7 @@ func TestLiteLLMTeamReconciler_MCPServers(t *testing.T) {
 				require.NoError(t, err)
 			}
 			require.Len(t, updates, 1)
+			assert.Equal(t, []any{}, updates[0]["models"])
 			assert.Equal(t, map[string]any{"mcp_servers": tt.want}, updates[0]["object_permission"])
 			require.NoError(t, c.Get(t.Context(), req.NamespacedName, team))
 			assert.Equal(t, testTeamName, team.Status.TeamID)
