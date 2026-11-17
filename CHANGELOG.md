@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.28](https://github.com/home-operations/litellm-operator/compare/0.0.27...0.0.28) (2026-11-17)
+
+
+### Bug Fixes
+
+* **litellmclient:** send empty models list for teams ([#259](https://github.com/home-operations/litellm-operator/issues/259)) ([9a0c89d](https://github.com/home-operations/litellm-operator/commit/9a0c89d6c3170d533fe1099c94c891541642b588))
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v5.2.7 → v5.2.8) ([#256](https://github.com/home-operations/litellm-operator/issues/256)) ([b71c9dd](https://github.com/home-operations/litellm-operator/commit/b71c9dd42573ad63a038ad353a9a6f097e5fb6a7))
+* **go:** update module github.com/defilantech/llmkube (v0.10.17 → v0.10.18) ([#255](https://github.com/home-operations/litellm-operator/issues/255)) ([7707b6d](https://github.com/home-operations/litellm-operator/commit/7707b6d4173851b41696775a2e2bfa224dc276c4))
+* **go:** update module sigs.k8s.io/controller-runtime (v0.25.2 → v0.25.3) ([#257](https://github.com/home-operations/litellm-operator/issues/257)) ([976ef31](https://github.com/home-operations/litellm-operator/commit/976ef31e128ef8c6a183369da16ffc776848bb3f))
+* **mise:** update mise tools ([#251](https://github.com/home-operations/litellm-operator/issues/251)) ([1d6c392](https://github.com/home-operations/litellm-operator/commit/1d6c392db706442b3cfd5d9cd9b2158401b29aac))
+* **mise:** update tool go (1.27.3 → 1.27.4) ([#253](https://github.com/home-operations/litellm-operator/issues/253)) ([57bb56b](https://github.com/home-operations/litellm-operator/commit/57bb56b98ab23f8c18e68d8022df2869caea2fb9))
+
 ## [0.0.27](https://github.com/home-operations/litellm-operator/compare/0.0.26...0.0.27) (2026-11-12)
 
 
