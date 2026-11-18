@@ -1,3 +1,5 @@
+min_version = "2026.11.1"
+
 [tools]
 go = "1.27.4"
 "go:golang.org/x/vuln/cmd/govulncheck" = "v1.10.0"
@@ -10,7 +12,7 @@ kind = "0.33.0"
 kube-controller-tools = "v0.22.0"
 kubectl = "1.37.2"
 lefthook = "2.2.2"
-oxfmt = "0.72.0"
+"github:oxc-project/oxc" = { version = "0.72.0", version_prefix = "oxfmt_v", matching_regex = "^oxfmt-", rename_exe = "oxfmt" }
 setup-envtest = "0.25.2"
 "aqua:dadav/helm-schema" = "0.23.5"
 yq = "4.54.3"
