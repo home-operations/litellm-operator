@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.29](https://github.com/home-operations/litellm-operator/compare/0.0.28...0.0.29) (2026-11-20)
+
+
+### Miscellaneous Chores
+
+* **github-action:** update action jdx/mise-action (v5.2.8 → v5.2.9) ([#263](https://github.com/home-operations/litellm-operator/issues/263)) ([2746b70](https://github.com/home-operations/litellm-operator/commit/2746b701fa480e14414f616771665299001023a3))
+* **go:** update module github.com/defilantech/llmkube (v0.10.18 → v0.10.19) ([#264](https://github.com/home-operations/litellm-operator/issues/264)) ([460c92a](https://github.com/home-operations/litellm-operator/commit/460c92ad00fee38f7bc4a6e8dfcb17c72e7aca4c))
+* **mise:** install oxfmt from GitHub releases ([#260](https://github.com/home-operations/litellm-operator/issues/260)) ([0653cc3](https://github.com/home-operations/litellm-operator/commit/0653cc3dea0bb2ec86e690ab18e1e40064842247))
+* **mise:** update tool go:golang.org/x/vuln/cmd/govulncheck (1.9.0 → v1.10.0) ([#261](https://github.com/home-operations/litellm-operator/issues/261)) ([dbe4c10](https://github.com/home-operations/litellm-operator/commit/dbe4c1082afd4e9c7279478e2c019e4eb908f96e))
+* **mise:** update tool setup-envtest (0.25.2 → 0.25.3) ([#265](https://github.com/home-operations/litellm-operator/issues/265)) ([0d426d2](https://github.com/home-operations/litellm-operator/commit/0d426d287e7aadae96d956009fa33282db7bf0e0))
+
 ## [0.0.28](https://github.com/home-operations/litellm-operator/compare/0.0.27...0.0.28) (2026-11-17)
 
 
