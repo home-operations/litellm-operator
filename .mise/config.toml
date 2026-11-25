@@ -16,7 +16,7 @@ lefthook = "2.2.2"
 setup-envtest = "0.25.3"
 "aqua:dadav/helm-schema" = "0.23.5"
 yq = "4.54.3"
-zizmor = "1.32.0"
+zizmor = "1.33.0"
 
 [tasks.manifests]
 description = "Generate CRD and RBAC manifests"
