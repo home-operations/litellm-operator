@@ -3,24 +3,27 @@
 lockfile_version = 4
 
 [[tools."aqua:dadav/helm-schema"]]
-version = "0.23.5"
+version = "0.24.0"
 backend = "aqua:dadav/helm-schema"
-specifiers = ["0.23.5"]
+specifiers = ["0.24.0"]
 
 [tools."aqua:dadav/helm-schema"."platforms.linux-arm64"]
-checksum = "sha256:9685fb7b11de591aebe0bcd62b84edbeb6ae190876078ca42cbed7116acd9f21"
-url = "https://github.com/dadav/helm-schema/releases/download/0.23.5/helm-schema_0.23.5_Linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/dadav/helm-schema/releases/assets/527236177"
+checksum = "sha256:c1e7221a2298eee31e409f9781a04a923a03ae6bb3e2c936b62b00881264224b"
+checksum_source = "mise-versions"
+url = "https://github.com/dadav/helm-schema/releases/download/0.24.0/helm-schema_0.24.0_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/dadav/helm-schema/releases/assets/654252841"
 
 [tools."aqua:dadav/helm-schema"."platforms.linux-x64"]
-checksum = "sha256:b6e5334de9651a06b5fc7af573a114fda5177ee13d4c3dc59e3b6f21d0695552"
-url = "https://github.com/dadav/helm-schema/releases/download/0.23.5/helm-schema_0.23.5_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/dadav/helm-schema/releases/assets/527236175"
+checksum = "sha256:0a075160075216d820385aa3dfb738052fee6cea56802de1551d1bda60c26f36"
+checksum_source = "mise-versions"
+url = "https://github.com/dadav/helm-schema/releases/download/0.24.0/helm-schema_0.24.0_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dadav/helm-schema/releases/assets/654252883"
 
 [tools."aqua:dadav/helm-schema"."platforms.macos-arm64"]
-checksum = "sha256:f64911ec568699772272db58bd1aba047c739933b026f1f1a7235141862ed54e"
-url = "https://github.com/dadav/helm-schema/releases/download/0.23.5/helm-schema_0.23.5_Darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/dadav/helm-schema/releases/assets/527236153"
+checksum = "sha256:bfe5b19b2d65e2dda2d6805166683465d2acc08527ceb4d706bedddd87e654a4"
+checksum_source = "mise-versions"
+url = "https://github.com/dadav/helm-schema/releases/download/0.24.0/helm-schema_0.24.0_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/dadav/helm-schema/releases/assets/654252875"
 
 [[tools.cosign]]
 version = "3.1.4"
@@ -46,30 +49,30 @@ url_api = "https://api.github.com/repos/sigstore/cosign/releases/assets/66006925
 provenance = "cosign"
 
 [[tools."github:oxc-project/oxc"]]
-version = "0.72.0"
+version = "0.80.0"
 backend = "github:oxc-project/oxc"
-specifiers = ["0.72.0"]
+specifiers = ["0.80.0"]
 
 [tools."github:oxc-project/oxc".options]
 matching_regex = "^oxfmt-"
 version_prefix = "oxfmt_v"
 
 [tools."github:oxc-project/oxc"."platforms.linux-arm64"]
-checksum = "sha256:eaf0a09a4022d9e5247c9bd021edbc1c8dfa63135fbf60989473ef86381f6715"
-url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.72.0/oxfmt-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/612320370"
+checksum = "sha256:5170d9c9072c1e2da6970524306aeccd107aa1d237f81cff5e2a6011844fb483"
+url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.80.0/oxfmt-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612277"
 provenance = "github-attestations"
 
 [tools."github:oxc-project/oxc"."platforms.linux-x64"]
-checksum = "sha256:79ac743aa36a91c26e54caa649ed64150ea4f8d36a60518424f156d67d55fe73"
-url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.72.0/oxfmt-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/612320456"
+checksum = "sha256:e393d1d65cff7f051cc5eb21fca7e29691dd4e9fdbb9bde09f73cd50cd8ec22d"
+url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.80.0/oxfmt-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612416"
 provenance = "github-attestations"
 
 [tools."github:oxc-project/oxc"."platforms.macos-arm64"]
-checksum = "sha256:7ec5c56444c116cbcda08277537e109900b17e335d07d7798e7b124cf8e34c86"
-url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.72.0/oxfmt-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/612320363"
+checksum = "sha256:32a03838f50d2417b55eae71226c940da9d7964b77e49648a51957795527b479"
+url = "https://github.com/oxc-project/oxc/releases/download/oxfmt_v0.80.0/oxfmt-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612273"
 provenance = "github-attestations"
 
 [[tools.go]]
@@ -198,24 +201,27 @@ url = "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-da
 url_api = "https://api.github.com/repos/kubernetes-sigs/kind/releases/assets/531396417"
 
 [[tools.kube-controller-tools]]
-version = "0.22.0"
+version = "0.23.0"
 backend = "github:kubernetes-sigs/controller-tools"
-specifiers = ["v0.22.0"]
+specifiers = ["v0.23.0"]
 
 [tools.kube-controller-tools."platforms.linux-arm64"]
-checksum = "sha256:c5151f30c3a51ddc8d722c18c263b495dae994ca246e9fa8994b1d4c95f3253a"
-url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.22.0/controller-gen-linux-arm64"
-url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/541008620"
+checksum = "sha256:9610184a2bc4b7f6f680e0d558f7976848f745ba3eeb3feb2340fbe15e96ce02"
+checksum_source = "mise-versions"
+url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.23.0/controller-gen-linux-arm64"
+url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/644519140"
 
 [tools.kube-controller-tools."platforms.linux-x64"]
-checksum = "sha256:a7d671f0e0da07a67b3a1618a6cab50353dffea5625cd2d8a8b3e18bacb497e6"
-url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.22.0/controller-gen-linux-amd64"
-url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/541008622"
+checksum = "sha256:849fc06f331c18ea4dcffd3f9c7e0d8d4a51013b57bbe60bc726fc125f9784a3"
+checksum_source = "mise-versions"
+url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.23.0/controller-gen-linux-amd64"
+url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/644519134"
 
 [tools.kube-controller-tools."platforms.macos-arm64"]
-checksum = "sha256:5e0d7c16ed9cc0ae887c02ebf5244a2739495c93eeaa7b20ccdd3abb20a53846"
-url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.22.0/controller-gen-darwin-arm64"
-url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/541008621"
+checksum = "sha256:4ac93bd254c07adabf6f6f88524da690f07b6004305a00ff37571ea6224ee944"
+checksum_source = "mise-versions"
+url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.23.0/controller-gen-darwin-arm64"
+url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/644519132"
 
 [[tools.kubectl]]
 version = "1.37.2"
